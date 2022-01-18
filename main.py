@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
+
 import utils
-import numba
 
 plt.close('all')
 
@@ -9,12 +9,11 @@ K = 40  # Number of single-antenna users
 M = 64  # Number of receive antennas
 T = 10  # Preamble length
 p_TX = 1
-SNR_dB = 0
+SNR_dB = 20
 SNR = 10 ** (SNR_dB / 10)
 
 ITER_MAX = K * 10
-
-np.random.seed(10)
+#np.random.seed(0)
 
 
 ## Preamble generation and user activity
@@ -58,12 +57,12 @@ print('Value of cost function just using only prior CSI: ' + str(
 ## Estimator based on partial CSI and iterative ML
 # Initialization thanks to prior CSI
 gamma_hat_partial_CSI, C_inverse_partial_CSI = utils.algorithm(gamma_hat_prior_CSI, lambda_k, s, M, y, g, sigma2, T, K, iter_max=ITER_MAX)
-print('Value of cost function just using partial CSI: ' + str(utils.ML_value(gamma_hat_partial_CSI, C_inverse_partial_CSI, y, s, g, M)))
+print('Value of cost function partial CSI (prior init): ' + str(utils.ML_value(gamma_hat_partial_CSI, C_inverse_partial_CSI, y, s, g, M)))
 
 ## Estimator based on partial CSI and iterative ML
 # Initialization without CSI
 gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init = utils.algorithm(np.zeros((K, 1), dtype=complex), lambda_k, s, M, y, g, sigma2, T, K, iter_max=ITER_MAX)
-print('Value of cost function just using partial CSI: ' + str(utils.ML_value(gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init, y, s, g, M)))
+print('Value of cost function partial CSI (0 init): ' + str(utils.ML_value(gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init, y, s, g, M)))
 
 # Estimator based on no CSI and iterative ML (as Caire)
 gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros((K, 1), dtype=complex), lambda_k, s, M, y, g, sigma2, T, K, iter_max=ITER_MAX, no_CSI=True)
@@ -86,8 +85,8 @@ plt.subplot(5, 1, 5)
 plt.stem(np.abs(gamma_hat_no_CSI), use_line_collection=True)
 plt.title('gamma_hat_no_CSI')
 
-print('MSE just using prior CSI: ' + str(10 * np.log10(np.average(abs(abs(gamma) - abs(gamma_hat_prior_CSI)) ** 2))))
-print('MSE using partial CSI: ' + str(10 * np.log10(np.average(abs(abs(gamma) - abs(gamma_hat_partial_CSI)) ** 2))))
-print('MSE using no CSI: ' + str(10 * np.log10(np.average(abs(abs(gamma) - abs(gamma_hat_no_CSI)) ** 2))))
+print(f'MSE just using prior CSI: \t{utils.MSE(gamma, gamma_hat_prior_CSI):0.2f} dB')
+print(f'MSE using partial CSI:  \t{utils.MSE(gamma, gamma_hat_partial_CSI):0.2f} dB')
+print(f'MSE using no CSI: \t\t\t{utils.MSE(gamma, gamma_hat_no_CSI):0.2f} dB')
 
 plt.show()

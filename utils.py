@@ -139,7 +139,12 @@ def ML_value(gamma_hat, C_inverse, y, s, g, M):
     return np.real(r_out)
 
 
-#@numba.jit(nopython=True)
+@numba.jit(nopython=True)
+def is_realpositive(val, tol=1e-15):
+    return np.imag(val) < tol and np.real(val) >= 0
+
+
+@numba.jit(nopython=True)
 def algorithm(gamma_hat, lambda_k, s, M, y, g, sigma2, T, K, iter_max=1000, no_CSI=False):
     iter_number = 0
     k_prime = 0
@@ -147,8 +152,10 @@ def algorithm(gamma_hat, lambda_k, s, M, y, g, sigma2, T, K, iter_max=1000, no_C
     g = g.copy()
     if no_CSI:
         g = g * 0
+        lambda_k = np.ones((K, 1))
     C_inverse = np.linalg.inv(
-        s @ np.diag(np.abs(gamma_hat[:, 0]) ** 2 * lambda_k[:, 0] ** 2).astype(np.complex_) @ s.T.conj() + sigma2 * np.identity(T))
+        s @ np.diag(np.abs(gamma_hat[:, 0]) ** 2 * lambda_k[:, 0] ** 2).astype(
+            np.complex_) @ s.T.conj() + sigma2 * np.identity(T))
 
     while not_converged:
         temp = gamma_hat[:, 0]
@@ -156,7 +163,8 @@ def algorithm(gamma_hat, lambda_k, s, M, y, g, sigma2, T, K, iter_max=1000, no_C
         y_m_k_prime = y - s @ np.diag(temp) @ g
 
         C_minus_k_prime_inverse = np.linalg.inv(
-            s @ np.diag(np.abs(temp) ** 2 * lambda_k[:, 0] ** 2).astype(np.complex_) @ s.T.conj() + sigma2 * np.identity(T))
+            s @ np.diag(np.abs(temp) ** 2 * lambda_k[:, 0] ** 2).astype(
+                np.complex_) @ s.T.conj() + sigma2 * np.identity(T))
 
         _alpha = alpha(s, C_minus_k_prime_inverse, g, y_m_k_prime, lambda_k, k_prime)
         _delta = delta(s, C_minus_k_prime_inverse, lambda_k, k_prime)
@@ -173,16 +181,14 @@ def algorithm(gamma_hat, lambda_k, s, M, y, g, sigma2, T, K, iter_max=1000, no_C
         sol = 0.0
         found = False
         for r in res:
-            if np.isreal(r):
-                r = np.real(r)
-                if r >= sol:
-                    sol = r
-                    found = True
+            if is_realpositive(r):
+                sol = np.real(r)
+                found = True
         if not found:
-            # raise ValueError("No solution for poly. found.")
+            raise ValueError("No solution for poly. found.")
             # do not use this value, retry next time.
             # fill with previous value
-            sol = np.abs(gamma_hat[k_prime])
+            # sol = abs(gamma_hat[k_prime])
 
         r_k_prime_hat = sol
 
@@ -194,7 +200,10 @@ def algorithm(gamma_hat, lambda_k, s, M, y, g, sigma2, T, K, iter_max=1000, no_C
             s @ np.diag(np.abs(gamma_hat[:, 0]) ** 2 * lambda_k[:, 0] ** 2).astype(
                 np.complex_) @ s.T.conj() + sigma2 * np.identity(T))
 
+        # Update gamma_hat
         gamma_hat[k_prime] = r_k_prime_hat * np.exp(1j * phi_k_prime_hat)
+
+        # next iteration
         k_prime = np.mod(k_prime + 1, K)
 
         # print('Iteration number: ' + str(iter_number) + ', value of cost function: '+ str(ML_value(gamma_hat)))
@@ -202,3 +211,7 @@ def algorithm(gamma_hat, lambda_k, s, M, y, g, sigma2, T, K, iter_max=1000, no_C
         if iter_number > iter_max - 1:
             not_converged = False
     return gamma_hat.copy(), C_inverse.copy()
+
+
+def MSE(mat, est):
+    return 10 * np.log10(np.average(abs(abs(mat) - abs(est)) ** 2))

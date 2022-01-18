@@ -64,7 +64,7 @@ print('Value of cost function partial CSI (prior init): ' + str(
 
 ## Estimator based on partial CSI and iterative ML
 # Initialization without CSI
-gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init = utils.algorithm(np.zeros((K, 1), dtype=complex), lambda_k,
+gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init = utils.algorithm(np.zeros_like(gamma), lambda_k,
                                                                              s, M, y, g, sigma2, T, K,
                                                                              iter_max=ITER_MAX)
 print('Value of cost function partial CSI (0 init): ' + str(
@@ -74,7 +74,7 @@ print('Value of cost function partial CSI (0 init): ' + str(
 
 lambda_k = np.ones_like(lambda_k)
 g = np.zeros_like(g)
-gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.ones((K, 1), dtype=complex), lambda_k, s, M, y, g, sigma2, T,
+gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros_like(gamma), lambda_k, s, M, y, g, sigma2, T,
                                                      K, iter_max=ITER_MAX)
 print('Value of cost function using no CSI: ' + str(utils.ML_value(gamma_hat_no_CSI, C_inverse_no_CSI, y, s, g, M)))
 

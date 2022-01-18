@@ -132,9 +132,9 @@ def ampl_top_full_csi():
     pass
 
 
-#@numba.jit(nopython=True)
-def ML_value(gamma_hat, C_inverse, y, s, g, M):
-    r_out = M * np.log(np.linalg.det(C_inverse)) - np.trace(
+@numba.jit(nopython=True)
+def ML_value(gamma_hat, C_inverse, y, s, g, M, T):
+    r_out = M * np.log(np.linalg.det(C_inverse)) - M*T*np.log(np.pi) - np.trace(
         (y - s @ np.diag(gamma_hat[:, 0]) @ g).T.conj() @ C_inverse @ (y - s @ np.diag(gamma_hat[:, 0]) @ g))
     return np.real(r_out)
 

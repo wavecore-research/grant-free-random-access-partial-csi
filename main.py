@@ -52,7 +52,7 @@ gamma_hat_prior_CSI = np.linalg.inv(Gamma.conj().T @ Gamma) @ Gamma.conj().T @ y
 C_inv_prior_CSI = np.linalg.inv(
     s @ np.diag(abs(gamma_hat_prior_CSI[:, 0]) ** 2 * lambda_k[:, 0] ** 2) @ s.T.conj() + sigma2 * np.identity(T))
 print('Value of cost function just using only prior CSI: ' + str(
-    utils.ML_value(gamma_hat_prior_CSI, C_inv_prior_CSI, y, s, g, M)))
+    utils.ML_value(gamma_hat_prior_CSI, C_inv_prior_CSI, y, s, g, M, T)))
 
 ## Estimator based on partial CSI and iterative ML
 # Initialization thanks to prior CSI
@@ -60,7 +60,7 @@ gamma_hat_partial_CSI, C_inverse_partial_CSI = utils.algorithm(gamma_hat_prior_C
                                                                T, K,
                                                                iter_max=ITER_MAX)
 print('Value of cost function partial CSI (prior init): ' + str(
-    utils.ML_value(gamma_hat_partial_CSI, C_inverse_partial_CSI, y, s, g, M)))
+    utils.ML_value(gamma_hat_partial_CSI, C_inverse_partial_CSI, y, s, g, M, T)))
 
 ## Estimator based on partial CSI and iterative ML
 # Initialization without CSI
@@ -68,7 +68,7 @@ gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init = utils.algorithm(np.
                                                                              s, M, y, g, sigma2, T, K,
                                                                              iter_max=ITER_MAX)
 print('Value of cost function partial CSI (0 init): ' + str(
-    utils.ML_value(gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init, y, s, g, M)))
+    utils.ML_value(gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init, y, s, g, M, T)))
 
 snr_k_partial_CSI = (np.linalg.norm(g, axis=1)**2+M*lambda_k**2)/sigma2
 
@@ -77,9 +77,10 @@ lambda_k = np.ones_like(lambda_k)
 g = np.zeros_like(g)
 gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros_like(gamma), lambda_k, s, M, y, g, sigma2, T,
                                                      K, iter_max=ITER_MAX)
+
 snr_k_no_CSI = (np.linalg.norm(g, axis=1)**2+M*lambda_k**2)/sigma2
 
-print('Value of cost function using no CSI: ' + str(utils.ML_value(gamma_hat_no_CSI, C_inverse_no_CSI, y, s, g, M)))
+print('Value of cost function using no CSI: ' + str(utils.ML_value(gamma_hat_no_CSI, C_inverse_no_CSI, y, s, g, M, T)))
 
 plt.figure()
 plt.subplot(4, 1, 1)

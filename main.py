@@ -13,9 +13,8 @@ SNR_dB = 20
 SNR = 10 ** (SNR_dB / 10)
 beta_k = np.ones((K, 1))
 
-ITER_MAX = K * 1
-# np.random.seed(0)
-
+ITER_MAX = K * 10
+np.random.seed(0)
 
 ## Preamble generation and user activity
 s = np.random.normal(0, 1 / np.sqrt(2), (T, K)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (T, K))
@@ -57,7 +56,8 @@ print('Value of cost function just using only prior CSI: ' + str(
 
 ## Estimator based on partial CSI and iterative ML
 # Initialization thanks to prior CSI
-gamma_hat_partial_CSI, C_inverse_partial_CSI = utils.algorithm(gamma_hat_prior_CSI, lambda_k, s, M, y, g, sigma2, T, K,
+gamma_hat_partial_CSI, C_inverse_partial_CSI = utils.algorithm(gamma_hat_prior_CSI.copy(), lambda_k, s, M, y, g, sigma2,
+                                                               T, K,
                                                                iter_max=ITER_MAX)
 print('Value of cost function partial CSI (prior init): ' + str(
     utils.ML_value(gamma_hat_partial_CSI, C_inverse_partial_CSI, y, s, g, M)))
@@ -70,28 +70,31 @@ gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init = utils.algorithm(np.
 print('Value of cost function partial CSI (0 init): ' + str(
     utils.ML_value(gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init, y, s, g, M)))
 
-# Estimator based on no CSI and iterative ML (as Caire)
+snr_k_partial_CSI = (np.linalg.norm(g, axis=1)**2+M*lambda_k**2)/sigma2
 
+# Estimator based on no CSI and iterative ML (as Caire)
 lambda_k = np.ones_like(lambda_k)
 g = np.zeros_like(g)
 gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros_like(gamma), lambda_k, s, M, y, g, sigma2, T,
                                                      K, iter_max=ITER_MAX)
+snr_k_no_CSI = (np.linalg.norm(g, axis=1)**2+M*lambda_k**2)/sigma2
+
 print('Value of cost function using no CSI: ' + str(utils.ML_value(gamma_hat_no_CSI, C_inverse_no_CSI, y, s, g, M)))
 
 plt.figure()
-plt.subplot(5, 1, 1)
+plt.subplot(4, 1, 1)
 plt.stem(np.abs(gamma), use_line_collection=True)
 plt.title('gamma')
-plt.subplot(5, 1, 2)
+plt.subplot(4, 1, 2)
 plt.stem(np.abs(gamma_hat_prior_CSI), use_line_collection=True)
 plt.title('gamma_hat_prior_CSI')
-plt.subplot(5, 1, 3)
+plt.subplot(4, 1, 3)
 plt.stem(np.abs(gamma_hat_partial_CSI), use_line_collection=True)
 plt.title('gamma_hat_partial_CSI')
-plt.subplot(5, 1, 4)
-plt.stem(np.abs(gamma_hat_partial_CSI_0_init), use_line_collection=True)
-plt.title('gamma_hat_partial_CSI_0_init')
-plt.subplot(5, 1, 5)
+# plt.subplot(5, 1, 4)
+# plt.stem(np.abs(gamma_hat_partial_CSI_0_init), use_line_collection=True)
+# plt.title('gamma_hat_partial_CSI_0_init')
+plt.subplot(4, 1, 4)
 plt.stem(np.abs(gamma_hat_no_CSI), use_line_collection=True)
 plt.title('gamma_hat_no_CSI')
 

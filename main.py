@@ -5,7 +5,7 @@ import utils
 
 plt.close('all')
 
-K = 40  # Number of single-antenna users
+K = 100  # Number of single-antenna users
 M = 64  # Number of receive antennas
 T = 10  # Preamble length
 p_TX = 1
@@ -13,12 +13,12 @@ SNR_dB = 20
 SNR = 10 ** (SNR_dB / 10)
 beta_k = np.ones((K, 1))
 
-ITER_MAX = K * 10
+ITER_MAX = K * 20
 np.random.seed(0)
 
 ## Preamble generation and user activity
 s = np.random.normal(0, 1 / np.sqrt(2), (T, K)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (T, K))
-a = np.random.binomial(n=1, p=0.1, size=(K, 1))
+a = np.random.binomial(n=1, p=0.25, size=(K, 1))
 phi = np.random.uniform(0, 2 * np.pi, size=(K, 1))
 rho = np.ones((K, 1)) * p_TX
 gamma = np.sqrt(rho) * a * np.exp(1j * phi)
@@ -70,7 +70,7 @@ gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init = utils.algorithm(np.
 print('Value of cost function partial CSI (0 init): ' + str(
     utils.ML_value(gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init, y, s, g, M, T)))
 
-snr_k_partial_CSI = (np.linalg.norm(g, axis=1)**2+M*lambda_k**2)/sigma2
+snr_k_partial_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k[:, 0] ** 2) / sigma2
 
 # Estimator based on no CSI and iterative ML (as Caire)
 lambda_k = np.ones_like(lambda_k)
@@ -78,9 +78,32 @@ g = np.zeros_like(g)
 gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros_like(gamma), lambda_k, s, M, y, g, sigma2, T,
                                                      K, iter_max=ITER_MAX)
 
-snr_k_no_CSI = (np.linalg.norm(g, axis=1)**2+M*lambda_k**2)/sigma2
+snr_k_no_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k ** 2) / sigma2
 
 print('Value of cost function using no CSI: ' + str(utils.ML_value(gamma_hat_no_CSI, C_inverse_no_CSI, y, s, g, M, T)))
+
+x = []
+y = []
+for v in np.linspace(0, 1, 100000):
+    gamma_th = v  # /np.sqrt(snr_k_partial_CSI)
+    a_k_estimate = np.zeros(K, int)
+    a_k_estimate[gamma_hat_partial_CSI[:, 0] > gamma_th] = 1
+
+    x.append(utils.prob_false(a[:, 0], a_k_estimate))
+    y.append(utils.prob_miss(a[:, 0], a_k_estimate))
+
+plt.figure()
+
+plt.scatter(x, y)
+
+plt.yscale('log')
+plt.xscale('log')
+
+plt.xlabel("Probability of False Alarm")
+plt.ylabel("Probability of Miss Detection")
+
+plt.tight_layout()
+plt.show()
 
 plt.figure()
 plt.subplot(4, 1, 1)

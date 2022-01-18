@@ -9,7 +9,7 @@ plt.close('all')
 
 
 def ML_value(gamma_hat):
-    r_out=M*np.log(np.linalg.det(C_inverse))- np.trace((y - s @ np.diag(gamma_hat[:,0]) @ g ).T.conj() @ C_inverse @ (y - s @ np.diag(gamma_hat[:,0]) @ g ))
+    r_out=M*np.log(np.linalg.det(C_inverse)) - M*T*np.log(np.pi) - np.trace((y - s @ np.diag(gamma_hat[:,0]) @ g ).T.conj() @ C_inverse @ (y - s @ np.diag(gamma_hat[:,0]) @ g ))
     return np.real(r_out)
 
 K=40 # Number of single-antenna users
@@ -21,14 +21,14 @@ SNR=10**(SNR_dB/10)
 
 ## Preamble generation and user activity
 s=np.random.normal(0,1/np.sqrt(2),(T,K))+1j*np.random.normal(0,1/np.sqrt(2),(T,K))
-a=np.random.binomial(n=1,p=0.1,size=(K,1))
+a=np.random.binomial(n=1,p=0.5,size=(K,1))
 phi=np.random.uniform(0,2*np.pi,size=(K,1))
 rho=np.ones((K,1))*p_TX
 gamma= np.sqrt(rho) * a * np.exp(1j*phi)
 
 ## Channel generation
 #lambda_k=np.random.uniform(0,1,(K,1))
-lambda_k=np.zeros((K,1))+0.9
+lambda_k=np.zeros((K,1))+0.2
 lambda_compl_k=np.sqrt(1-lambda_k**2)
 #lambda_compl_k=np.ones((K,1))*0.7
 

@@ -23,7 +23,7 @@ eps_a = 0.25
 
 ITER_MAX = K * 10
 
-NUM_SIM = 1
+NUM_SIM = 10
 
 gamma_real = np.zeros((NUM_SIM, K), dtype=complex)
 gamma_prior_csi = np.zeros((NUM_SIM, K), dtype=complex)
@@ -90,7 +90,7 @@ for n_sim in tqdm.trange(NUM_SIM):
     C_inv_prior_CSI = np.linalg.inv(
         s @ np.diag(np.abs(gamma_hat_prior_CSI[:, 0]) ** 2 * lambda_k[:, 0] ** 2) @ s.T.conj() + sigma2 * np.identity(
             T))
-    MSE_prior_csi[n_sim] = utils.ML_value(gamma_hat_prior_CSI[:, 0], C_inv_prior_CSI, y, s, g, M, T)
+    MSE_prior_csi[n_sim] = utils.MSE(gamma_real[n_sim,:], gamma_prior_csi[n_sim, :]) #utils.ML_value(gamma_prior_csi[n_sim, :], C_inv_prior_CSI, y, s, g, M, T)
 
     ## Estimator based on partial CSI and iterative ML
     # Initialization thanks to prior CSI
@@ -99,14 +99,14 @@ for n_sim in tqdm.trange(NUM_SIM):
                                                                    T, K,
                                                                    iter_max=ITER_MAX)
     gamma_partial_csi[n_sim, :] = gamma_hat_partial_CSI.copy()
-    MSE_partial_csi[n_sim] = utils.ML_value(gamma_hat_partial_CSI, C_inverse_partial_CSI, y, s, g, M, T)
+    MSE_partial_csi[n_sim] = utils.MSE(gamma_real[n_sim,:], gamma_partial_csi[n_sim, :]) #utils.ML_value(gamma_partial_csi[n_sim, :], C_inverse_partial_CSI, y, s, g, M, T)
 
     gamma_hat_genie_CSI, C_inverse_genie_CSI = utils.algorithm(gamma, lambda_k, s, M, y, g,
                                                                sigma2,
                                                                T, K,
                                                                iter_max=ITER_MAX)
     gamma_genie_csi[n_sim, :] = gamma_hat_genie_CSI.copy()
-    MSE_genie_csi[n_sim] = utils.ML_value(gamma_hat_genie_CSI, C_inverse_genie_CSI, y, s, g, M, T)
+    MSE_genie_csi[n_sim] = utils.MSE(gamma_real[n_sim,:], gamma_genie_csi[n_sim, :]) #utils.ML_value(gamma_genie_csi[n_sim, :], C_inverse_genie_CSI, y, s, g, M, T)
 
     ## Estimator based on partial CSI and iterative ML
     # Initialization without CSI
@@ -128,7 +128,7 @@ for n_sim in tqdm.trange(NUM_SIM):
 
     # snr_k_no_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k ** 2) / sigma2
 
-    MSE_no_csi[n_sim] = utils.ML_value(gamma_hat_no_CSI, C_inverse_no_CSI, y, s, g, M, T)
+    MSE_no_csi[n_sim] = utils.MSE(gamma_real[n_sim,:], gamma_no_csi[n_sim, :]) #utils.ML_value(gamma_no_csi[n_sim, :], C_inverse_no_CSI, y, s, g, M, T)
 
     # def roc(gamma_est):
     #     res = np.zeros((2, NUM_V))
@@ -191,7 +191,7 @@ for n_sim in tqdm.trange(NUM_SIM):
 # plt.tight_layout()
 # plt.show()
 
-
+#TODO sum log or sum 10**log/10?
 print(f'MSE just using prior CSI: \t{np.average(MSE_prior_csi):0.2f} dB')
 print(f'MSE using partial CSI:  \t{np.average(MSE_partial_csi):0.2f} dB')
 print(f'MSE using genie-aided CSI:  \t{np.average(MSE_genie_csi):0.2f} dB')

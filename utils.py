@@ -223,21 +223,6 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
             not_converged = False
     return gamma_hat.copy(), C_inverse.copy()
 
-@numba.jit(fastmath=True)
-def algorithm_2(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int, y: np.ndarray, g: np.ndarray,
-              sigma2: float, T: int, K: int, iter_max: int = 1000):
-    iter_number = 0
-    k_prime = 0
-    not_converged = True
-
-    sigma2 = sigma2*np.identity(T)
-
-    r = np.abs(gamma_hat[:, 0]) ** 2 * lambda_k[:, 0] ** 2
-    R = np.diag(r).astype(numba.types.complex128)
-    P = s.T.conj()
-
-    C_inverse = np.linalg.inv((s @ R @ P) + sigma2)
-    return None, None
 
 def MSE(mat, est):
     return 10 * np.log10(np.average(abs(abs(mat) - abs(est)) ** 2))

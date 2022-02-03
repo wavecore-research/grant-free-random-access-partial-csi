@@ -90,7 +90,7 @@ for n_sim in tqdm.trange(NUM_SIM):
     C_inv_prior_CSI = np.linalg.inv(
         s @ np.diag(np.abs(gamma_hat_prior_CSI[:, 0]) ** 2 * lambda_k[:, 0] ** 2) @ s.T.conj() + sigma2 * np.identity(
             T))
-    MSE_prior_csi[n_sim] = utils.ML_value(gamma_hat_prior_CSI, C_inv_prior_CSI, y, s, g, M, T)
+    MSE_prior_csi[n_sim] = utils.ML_value(gamma_hat_prior_CSI[:, 0], C_inv_prior_CSI, y, s, g, M, T)
 
     ## Estimator based on partial CSI and iterative ML
     # Initialization thanks to prior CSI

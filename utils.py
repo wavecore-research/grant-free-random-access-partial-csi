@@ -155,13 +155,13 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
     k_prime = 0
     not_converged = True
 
-    sigma2 = sigma2*np.identity(T)
+    sigma2I = sigma2*np.identity(T)
 
     r = np.abs(gamma_hat[:, 0]) ** 2 * lambda_k[:, 0] ** 2
     R = np.diag(r).astype(numba.types.complex128)
     P = s.T.conj()
 
-    C_inverse = np.linalg.inv((s @ R @ P) + sigma2)
+    C_inverse = np.linalg.inv((s @ R @ P) + sigma2I)
 
     while not_converged:
         temp = gamma_hat[:, 0]
@@ -174,7 +174,7 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
         else:
             C_minus_k_prime_inverse = np.linalg.inv(
                 s @ np.diag(np.abs(temp) ** 2 * lambda_k[:, 0] ** 2).astype(
-                    numba.types.complex128) @ s.T.conj() + sigma2)
+                    numba.types.complex128) @ s.T.conj() + sigma2I)
 
             _alpha = alpha(s, C_minus_k_prime_inverse, g, y_m_k_prime, lambda_k, k_prime)
             _delta = delta(s, C_minus_k_prime_inverse, lambda_k, k_prime)
@@ -212,7 +212,7 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
 
         C_inverse = np.linalg.inv(
             s @ np.diag(np.abs(gamma_hat[:, 0]) ** 2 * lambda_k[:, 0] ** 2).astype(
-                numba.types.complex128) @ s.T.conj() + sigma2)
+                numba.types.complex128) @ s.T.conj() + sigma2I)
 
         # next iteration
         k_prime = np.mod(k_prime + 1, K)

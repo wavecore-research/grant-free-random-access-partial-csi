@@ -54,8 +54,8 @@ g = np.diag(lambda_compl_k[:, 0]) @ (
         np.random.normal(0, 1 / np.sqrt(2), (K, M)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (K, M)))
 
 import tqdm
-
-for n_sim in tqdm.trange(NUM_SIM):
+# tqdm.trange
+for n_sim in range(NUM_SIM):
 
     gamma_real[n_sim, :] = gamma.copy().flatten()
     epsilon = np.random.normal(0, 1 / np.sqrt(2), (K, M)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (K, M))
@@ -105,8 +105,7 @@ for n_sim in tqdm.trange(NUM_SIM):
 
     # Estimator based on no CSI and iterative ML (as Caire)
     lambda_k = np.ones_like(lambda_k)
-    g = np.zeros_like(g)
-    gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros_like(gamma), lambda_k, s, M, y, g, sigma2, T,
+    gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros_like(gamma), lambda_k, s, M, y, np.zeros_like(g), sigma2, T,
                                                          K, iter_max=ITER_MAX)
     gamma_no_csi[n_sim, :] = gamma_hat_no_CSI.copy().flatten()
 

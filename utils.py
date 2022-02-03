@@ -231,4 +231,4 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
 
 
 def MSE(mat, est):
-    return 10 * np.log10(np.average(abs(abs(mat) - abs(est)) ** 2))
+    return np.average(np.abs(np.abs(mat) - np.abs(est)) ** 2)

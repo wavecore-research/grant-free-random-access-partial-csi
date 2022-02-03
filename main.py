@@ -1,21 +1,27 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+import warnings
+from numba.core.errors import NumbaPerformanceWarning
+
+warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
+
 import utils
+
+np.random.seed(69)
 
 plt.close('all')
 
-K = 100  # Number of single-antenna users
+K = 40  # Number of single-antenna users
 M = 128  # Number of receive antennas
 T = 40  # Preamble length
 p_TX = 1
-SNR_dB = 0
+SNR_dB = 20
 SNR = 10 ** (SNR_dB / 10)
 beta_k = np.ones((K, 1))
 eps_a = 0.25
 
 ITER_MAX = K * 10
-# np.random.seed(0)
 
 NUM_SIM = 10
 
@@ -30,30 +36,29 @@ roc_prior_csi = np.zeros((NUM_SIM, 2, NUM_V))
 roc_partial_csi = np.zeros((NUM_SIM, 2, NUM_V))
 roc_no_csi = np.zeros((NUM_SIM, 2, NUM_V))
 
+## Channel generation
+# lambda_k= beta_k - E(||g_k||^2/M)
+lambda_k = np.zeros((K, 1)) + 0.95
+lambda_compl_k = np.sqrt(1 - lambda_k ** 2)
+rho = np.ones((K, 1)) * p_TX
+phi = np.random.uniform(0, 2 * np.pi, size=(K, 1))
+
+## Preamble generation and user activity
+s = np.random.normal(0, 1 / np.sqrt(2), (T, K)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (T, K))
+a = np.random.binomial(n=1, p=eps_a, size=(K, 1))
+
+gamma = np.sqrt(rho) * a * np.exp(1j * phi)
+
+## Channel generation
+g = np.diag(lambda_compl_k[:, 0]) @ (
+        np.random.normal(0, 1 / np.sqrt(2), (K, M)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (K, M)))
+
 import tqdm
 
 for n_sim in tqdm.trange(NUM_SIM):
 
-    ## Preamble generation and user activity
-    s = np.random.normal(0, 1 / np.sqrt(2), (T, K)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (T, K))
-    a = np.random.binomial(n=1, p=eps_a, size=(K, 1))
-    phi = np.random.uniform(0, 2 * np.pi, size=(K, 1))
-    rho = np.ones((K, 1)) * p_TX
-    gamma = np.sqrt(rho) * a * np.exp(1j * phi)
-
     gamma_real[n_sim, :] = gamma.copy().flatten()
-
-    ## Channel generation
-    # lambda_k=np.random.uniform(0,1,(K,1))
-    # TODO lambda_k= beta_k - E(||g_k||^2/M)
-    lambda_k = np.zeros((K, 1)) + 0.95
-    lambda_compl_k = np.sqrt(1 - lambda_k ** 2)
-    # lambda_compl_k=np.ones((K,1))*0.7
-
-    g = np.diag(lambda_compl_k[:, 0]) @ (
-            np.random.normal(0, 1 / np.sqrt(2), (K, M)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (K, M)))
     epsilon = np.random.normal(0, 1 / np.sqrt(2), (K, M)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (K, M))
-
     h = g + np.diag(lambda_k[:, 0]) @ epsilon
 
     ## Received preamble
@@ -79,14 +84,7 @@ for n_sim in tqdm.trange(NUM_SIM):
 
     ## Estimator based on partial CSI and iterative ML
     # Initialization thanks to prior CSI
-    #gamma_hat_prior_CSI
-    sigma2 = sigma2 * np.identity(T)
-    gamma_hat_partial_CSI, C_inverse_partial_CSI = utils.algorithm_2(np.zeros_like(gamma), lambda_k, s, M, y, g,
-                                                                   sigma2,
-                                                                   T, K,
-                                                                   iter_max=ITER_MAX)
-
-    gamma_hat_partial_CSI, C_inverse_partial_CSI = utils.algorithm(np.zeros_like(gamma), lambda_k, s, M, y, g,
+    gamma_hat_partial_CSI, C_inverse_partial_CSI = utils.algorithm(gamma_hat_prior_CSI, lambda_k, s, M, y, g,
                                                                    sigma2,
                                                                    T, K,
                                                                    iter_max=ITER_MAX)
@@ -103,7 +101,7 @@ for n_sim in tqdm.trange(NUM_SIM):
     # print('Value of cost function partial CSI (0 init): ' + str(
     #     utils.ML_value(gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init, y, s, g, M, T)))
 
-    #snr_k_partial_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k[:, 0] ** 2) / sigma2
+    # snr_k_partial_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k[:, 0] ** 2) / sigma2
 
     # Estimator based on no CSI and iterative ML (as Caire)
     lambda_k = np.ones_like(lambda_k)
@@ -112,11 +110,11 @@ for n_sim in tqdm.trange(NUM_SIM):
                                                          K, iter_max=ITER_MAX)
     gamma_no_csi[n_sim, :] = gamma_hat_no_CSI.copy().flatten()
 
-    #snr_k_no_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k ** 2) / sigma2
+
+    # snr_k_no_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k ** 2) / sigma2
 
     # print('Value of cost function using no CSI: ' + str(
     #     utils.ML_value(gamma_hat_no_CSI, C_inverse_no_CSI, y, s, g, M, T)))
-
 
     def roc(gamma_est):
         res = np.zeros((2, NUM_V))
@@ -178,6 +176,7 @@ for n_sim in tqdm.trange(NUM_SIM):
 # plt.tight_layout()
 # plt.show()
 
+
 ROWS = 5
 THRESHOLD = 0.2
 
@@ -198,14 +197,13 @@ plt.legend()
 plt.tight_layout()
 plt.show()
 
-
 plt.figure()
 _roc = np.average(roc_prior_csi, axis=0)
-plt.plot(_roc[0]*100, _roc[1]*100, label="Prior CSI")
+plt.plot(_roc[0] * 100, _roc[1] * 100, label="Prior CSI")
 _roc = np.average(roc_partial_csi, axis=0)
-plt.plot(_roc[0]*100, _roc[1]*100, label="Partial CSI")
+plt.plot(_roc[0] * 100, _roc[1] * 100, label="Partial CSI")
 _roc = np.average(roc_no_csi, axis=0)
-plt.plot(_roc[0]*100, _roc[1]*100, label="No CSI")
+plt.plot(_roc[0] * 100, _roc[1] * 100, label="No CSI")
 
 # plt.yscale('log')
 # plt.xscale('log')

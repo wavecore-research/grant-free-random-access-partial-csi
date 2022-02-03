@@ -148,7 +148,7 @@ def is_realpositive(val, tol=1e-15):
     return np.imag(val) < tol and np.real(val) >= 0
 
 
-@numba.jit(nopython=True)
+@numba.jit(nopython=True, fastmath=True)
 def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int, y: np.ndarray, g: np.ndarray,
               sigma2: float, T: int, K: int, iter_max: int = 1000):
     iter_number = 0

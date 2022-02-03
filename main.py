@@ -23,18 +23,26 @@ eps_a = 0.25
 
 ITER_MAX = K * 10
 
-NUM_SIM = 10
+NUM_SIM = 1
 
 gamma_real = np.zeros((NUM_SIM, K), dtype=complex)
 gamma_prior_csi = np.zeros((NUM_SIM, K), dtype=complex)
 gamma_partial_csi = np.zeros((NUM_SIM, K), dtype=complex)
 gamma_no_csi = np.zeros((NUM_SIM, K), dtype=complex)
+gamma_genie_csi = np.zeros((NUM_SIM, K), dtype=complex)
 
 NUM_V = 100
 
 roc_prior_csi = np.zeros((NUM_SIM, 2, NUM_V))
 roc_partial_csi = np.zeros((NUM_SIM, 2, NUM_V))
 roc_no_csi = np.zeros((NUM_SIM, 2, NUM_V))
+roc_genie_csi = np.zeros((NUM_SIM, 2, NUM_V))
+
+
+MSE_prior_csi = np.zeros(NUM_SIM)
+MSE_partial_csi = np.zeros(NUM_SIM)
+MSE_no_csi = np.zeros((NUM_SIM))
+MSE_genie_csi = np.zeros((NUM_SIM))
 
 ## Channel generation
 # lambda_k= beta_k - E(||g_k||^2/M)
@@ -55,10 +63,11 @@ g = np.diag(lambda_compl_k[:, 0]) @ (
 
 import tqdm
 
-# tqdm.trange
 for n_sim in tqdm.trange(NUM_SIM):
 
     gamma_real[n_sim, :] = gamma.copy().flatten()
+
+    ## Channel generation
     epsilon = np.random.normal(0, 1 / np.sqrt(2), (K, M)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (K, M))
     h = g + np.diag(lambda_k[:, 0]) @ epsilon
 
@@ -76,62 +85,68 @@ for n_sim in tqdm.trange(NUM_SIM):
         Gamma[0 + index_m * T:T + index_m * T, :] = s @ np.diag(g[:, index_m])
     gamma_hat_prior_CSI = np.linalg.inv(Gamma.conj().T @ Gamma) @ Gamma.conj().T @ y_tilde
 
-    gamma_prior_csi[n_sim, :] = gamma_hat_prior_CSI.copy().flatten()
+    gamma_prior_csi[n_sim, :] = gamma_hat_prior_CSI.copy()[:,0]
 
     C_inv_prior_CSI = np.linalg.inv(
-        s @ np.diag(abs(gamma_hat_prior_CSI[:, 0]) ** 2 * lambda_k[:, 0] ** 2) @ s.T.conj() + sigma2 * np.identity(T))
-    # print('Value of cost function just using only prior CSI: ' + str(
-    #     utils.ML_value(gamma_hat_prior_CSI, C_inv_prior_CSI, y, s, g, M, T)))
+        s @ np.diag(np.abs(gamma_hat_prior_CSI[:, 0]) ** 2 * lambda_k[:, 0] ** 2) @ s.T.conj() + sigma2 * np.identity(
+            T))
+    MSE_prior_csi[n_sim] = utils.ML_value(gamma_hat_prior_CSI, C_inv_prior_CSI, y, s, g, M, T)
 
     ## Estimator based on partial CSI and iterative ML
     # Initialization thanks to prior CSI
-    gamma_hat_partial_CSI, C_inverse_partial_CSI = utils.algorithm(gamma_hat_prior_CSI, lambda_k, s, M, y, g,
+    gamma_hat_partial_CSI, C_inverse_partial_CSI = utils.algorithm(gamma_hat_prior_CSI.copy(), lambda_k, s, M, y, g,
                                                                    sigma2,
                                                                    T, K,
                                                                    iter_max=ITER_MAX)
-    # print('Value of cost function partial CSI (prior init): ' + str(
-    #     utils.ML_value(gamma_hat_partial_CSI, C_inverse_partial_CSI, y, s, g, M, T)))
+    gamma_partial_csi[n_sim, :] = gamma_hat_partial_CSI.copy()
+    MSE_partial_csi[n_sim] = utils.ML_value(gamma_hat_partial_CSI, C_inverse_partial_CSI, y, s, g, M, T)
 
-    gamma_partial_csi[n_sim, :] = gamma_hat_partial_CSI.copy().flatten()
+    gamma_hat_genie_CSI, C_inverse_genie_CSI = utils.algorithm(gamma, lambda_k, s, M, y, g,
+                                                               sigma2,
+                                                               T, K,
+                                                               iter_max=ITER_MAX)
+    gamma_genie_csi[n_sim, :] = gamma_hat_genie_CSI.copy()
+    MSE_genie_csi[n_sim] = utils.ML_value(gamma_hat_genie_CSI, C_inverse_genie_CSI, y, s, g, M, T)
 
     ## Estimator based on partial CSI and iterative ML
     # Initialization without CSI
     gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init = utils.algorithm(np.zeros_like(gamma), lambda_k,
                                                                                  s, M, y, g, sigma2, T, K,
                                                                                  iter_max=ITER_MAX)
-    # print('Value of cost function partial CSI (0 init): ' + str(
-    #     utils.ML_value(gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init, y, s, g, M, T)))
+
+   #utils.ML_value(gamma_hat_partial_CSI_0_init, C_inverse_partial_CSI_0_init, y, s, g, M, T)))
 
     # snr_k_partial_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k[:, 0] ** 2) / sigma2
 
     # Estimator based on no CSI and iterative ML (as Caire)
-    gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros_like(gamma), np.ones_like(lambda_k), s, M, y, np.zeros_like(g),
+    gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros_like(gamma), np.ones_like(lambda_k), s, M, y,
+                                                         np.zeros_like(g),
                                                          sigma2, T,
                                                          K, iter_max=ITER_MAX)
-    gamma_no_csi[n_sim, :] = gamma_hat_no_CSI.copy().flatten()
+    gamma_no_csi[n_sim, :] = gamma_hat_no_CSI.copy()
 
 
     # snr_k_no_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k ** 2) / sigma2
 
-    # print('Value of cost function using no CSI: ' + str(
-    #     utils.ML_value(gamma_hat_no_CSI, C_inverse_no_CSI, y, s, g, M, T)))
+    MSE_no_csi[n_sim] = utils.ML_value(gamma_hat_no_CSI, C_inverse_no_CSI, y, s, g, M, T)
 
-    def roc(gamma_est):
-        res = np.zeros((2, NUM_V))
-        for v_i, v in enumerate(np.linspace(0, 1, NUM_V)):
-            a_k_estimate = np.zeros(K, int)
-            a_k_estimate[gamma_est[:, 0] > v] = 1
-
-            x = utils.prob_false(np.abs(a[:, 0]), np.abs(a_k_estimate))
-            y = utils.prob_miss(np.abs(a[:, 0]), np.abs(a_k_estimate))
-            res[0, v_i] = x
-            res[1, v_i] = y
-        return res
-
-
-    roc_prior_csi[n_sim, :, :] = roc(gamma_hat_prior_CSI)
-    roc_partial_csi[n_sim, :, :] = roc(gamma_hat_partial_CSI)
-    roc_no_csi[n_sim, :, :] = roc(gamma_hat_no_CSI)
+    # def roc(gamma_est):
+    #     res = np.zeros((2, NUM_V))
+    #     for v_i, v in enumerate(np.linspace(0, 2, NUM_V)):
+    #         a_k_estimate = np.zeros(K, int)
+    #         a_k_estimate[gamma_est > v] = 1
+    #
+    #         x = utils.prob_false(np.abs(a[:, 0]), np.abs(a_k_estimate))
+    #         y = utils.prob_miss(np.abs(a[:, 0]), np.abs(a_k_estimate))
+    #         res[0, v_i] = x
+    #         res[1, v_i] = y
+    #     return res
+    #
+    #
+    # roc_prior_csi[n_sim, :, :] = roc(gamma_hat_prior_CSI)
+    # roc_partial_csi[n_sim, :, :] = roc(gamma_hat_partial_CSI)
+    # roc_no_csi[n_sim, :, :] = roc(gamma_hat_no_CSI)
+    # roc_genie_csi[n_sim, :, :] = roc(gamma_hat_genie_CSI)
 
 # ROWS = 5
 # THRESHOLD = 0.2
@@ -177,39 +192,46 @@ for n_sim in tqdm.trange(NUM_SIM):
 # plt.show()
 
 
-ROWS = 5
-THRESHOLD = 0.2
-
-plt.figure()
-_roc = np.average(roc_prior_csi, axis=0)
-plt.plot(_roc[0], _roc[1], label="Prior CSI")
-_roc = np.average(roc_partial_csi, axis=0)
-plt.plot(_roc[0], _roc[1], label="Partial CSI")
-_roc = np.average(roc_no_csi, axis=0)
-plt.plot(_roc[0], _roc[1], label="No CSI")
-
-plt.yscale('log')
-plt.xscale('log')
-
-plt.xlabel("Probability of False Alarm")
-plt.ylabel("Probability of Miss Detection")
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-plt.figure()
-_roc = np.average(roc_prior_csi, axis=0)
-plt.plot(_roc[0] * 100, _roc[1] * 100, label="Prior CSI")
-_roc = np.average(roc_partial_csi, axis=0)
-plt.plot(_roc[0] * 100, _roc[1] * 100, label="Partial CSI")
-_roc = np.average(roc_no_csi, axis=0)
-plt.plot(_roc[0] * 100, _roc[1] * 100, label="No CSI")
-
+print(f'MSE just using prior CSI: \t{np.average(MSE_prior_csi):0.2f} dB')
+print(f'MSE using partial CSI:  \t{np.average(MSE_partial_csi):0.2f} dB')
+print(f'MSE using genie-aided CSI:  \t{np.average(MSE_genie_csi):0.2f} dB')
+print(f'MSE using no CSI: \t\t\t{np.average(MSE_no_csi):0.2f} dB')
+#
+# ROWS = 5
+# THRESHOLD = 0.2
+#
+# plt.figure()
+# _roc = np.average(roc_prior_csi, axis=0)
+# plt.plot(_roc[0], _roc[1], label="Prior CSI")
+# _roc = np.average(roc_partial_csi, axis=0)
+# plt.plot(_roc[0], _roc[1], label="Partial CSI")
+# _roc = np.average(roc_no_csi, axis=0)
+# plt.plot(_roc[0], _roc[1], label="No CSI")
+#
 # plt.yscale('log')
 # plt.xscale('log')
-
-plt.xlabel("Probability of False Alarm (%)")
-plt.ylabel("Probability of Miss Detection (%)")
-plt.legend()
-plt.tight_layout()
-plt.show()
+#
+# plt.xlabel("Probability of False Alarm")
+# plt.ylabel("Probability of Miss Detection")
+# plt.legend()
+# plt.tight_layout()
+# plt.show()
+#
+# plt.figure()
+# _roc = np.average(roc_prior_csi, axis=0)
+# plt.plot(_roc[0] * 100, _roc[1] * 100, label="Prior CSI")
+# _roc = np.average(roc_partial_csi, axis=0)
+# plt.plot(_roc[0] * 100, _roc[1] * 100, label="Partial CSI")
+# _roc = np.average(roc_no_csi, axis=0)
+# plt.plot(_roc[0] * 100, _roc[1] * 100, label="No CSI")
+# _roc = np.average(roc_genie_csi, axis=0)
+# plt.plot(_roc[0] * 100, _roc[1] * 100, label="Genie-aided CSI")
+#
+# # plt.yscale('log')
+# # plt.xscale('log')
+#
+# plt.xlabel("Probability of False Alarm (%)")
+# plt.ylabel("Probability of Miss Detection (%)")
+# plt.legend()
+# plt.tight_layout()
+# plt.show()

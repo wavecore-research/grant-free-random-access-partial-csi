@@ -55,7 +55,7 @@ g = np.diag(lambda_compl_k[:, 0]) @ (
 
 import tqdm
 # tqdm.trange
-for n_sim in range(NUM_SIM):
+for n_sim in tqdm.trange(NUM_SIM):
 
     gamma_real[n_sim, :] = gamma.copy().flatten()
     epsilon = np.random.normal(0, 1 / np.sqrt(2), (K, M)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (K, M))

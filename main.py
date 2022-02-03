@@ -54,6 +54,7 @@ g = np.diag(lambda_compl_k[:, 0]) @ (
         np.random.normal(0, 1 / np.sqrt(2), (K, M)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (K, M)))
 
 import tqdm
+
 # tqdm.trange
 for n_sim in tqdm.trange(NUM_SIM):
 
@@ -104,8 +105,8 @@ for n_sim in tqdm.trange(NUM_SIM):
     # snr_k_partial_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k[:, 0] ** 2) / sigma2
 
     # Estimator based on no CSI and iterative ML (as Caire)
-    lambda_k = np.ones_like(lambda_k)
-    gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros_like(gamma), lambda_k, s, M, y, np.zeros_like(g), sigma2, T,
+    gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros_like(gamma), np.ones_like(lambda_k), s, M, y, np.zeros_like(g),
+                                                         sigma2, T,
                                                          K, iter_max=ITER_MAX)
     gamma_no_csi[n_sim, :] = gamma_hat_no_CSI.copy().flatten()
 

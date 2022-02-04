@@ -21,10 +21,10 @@ eps_a = 0.25
 
 ITER_MAX = K * 10
 
-NUM_MONTE_SIM = 1
-NUM_LAMBDA = 1
-NUM_SNR = 1
-NUM_T = 1
+NUM_MONTE_SIM = 20
+NUM_LAMBDA = 10
+NUM_SNR = 10
+NUM_T = 10
 
 lambdas = np.linspace(0.1, 0.95, num=NUM_LAMBDA)
 snrs_dB = np.linspace(20, -20, num=NUM_SNR)

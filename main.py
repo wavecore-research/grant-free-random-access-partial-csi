@@ -12,14 +12,14 @@ np.random.seed(0)
 
 plt.close('all')
 
-K = 40  # Number of single-antenna users
+#K = 40  # Number of single-antenna users
 M = 64  # Number of receive antennas
 p_TX = 1
 
 # beta_k = np.ones((K, 1))
 eps_a = 0.25
 
-ITER_MAX = K * 10
+
 
 NUM_MONTE_SIM = 20
 NUM_LAMBDA = 10
@@ -29,9 +29,9 @@ NUM_T = 10
 lambdas = np.linspace(0.1, 0.95, num=NUM_LAMBDA)
 snrs_dB = np.linspace(20, -20, num=NUM_SNR)
 snrs = 10 ** (snrs_dB / 10)
-preamble_lengths = np.arange(1, 100, step=100 // NUM_T, dtype=int)
+preamble_lengths = np.arange(4, 100, step=100 // NUM_T, dtype=int)
 antennas = [16, 32, 64, 128]
-users = [40, 60, 100, 120, 200, 500]
+users = [40, 60, 100, 120, 200, 500] # Number of single-antenna users
 
 NUM_ANT = len(antennas)
 NUM_K = len(users)
@@ -53,10 +53,11 @@ MSE_no_csi = np.zeros(SHAPE_MSE, dtype=float)
 # MSE_genie_csi = np.zeros(SHAPE_MSE, dtype=float)
 
 import tqdm
-pbar = tqdm(total=NUM_MONTE_SIM*NUM_LAMBDA*NUM_SNR*NUM_T*NUM_ANT*NUM_K)
+pbar = tqdm.tqdm(total=NUM_MONTE_SIM*NUM_LAMBDA*NUM_SNR*NUM_T*NUM_ANT*NUM_K)
 
 for n_sim in range(NUM_MONTE_SIM):
     for i_K, K in enumerate(users):
+        ITER_MAX = K * 10
         rho = np.ones((K, 1)) * p_TX
         phi = np.random.uniform(0, 2 * np.pi, size=(K, 1))
         a = np.random.binomial(n=1, p=eps_a, size=(K, 1))

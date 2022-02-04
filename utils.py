@@ -95,10 +95,10 @@ def H(arr: np.ndarray):
 
 @numba.jit(fastmath=True, nopython=True)
 def alpha(s, C_inv, g, y_m_k_prime, lambda_k, k_prime):
-    temp = s[:, k_prime].T.conj() @ C_inv @ s[:, k_prime]
+    temp1 = s[:, k_prime].T.conj() @ C_inv @ s[:, k_prime]
     temp2 = y_m_k_prime.T.conj() @ C_inv @ s[:, k_prime]
     return float(np.real(
-        lambda_k[k_prime] ** 2 * np.sum(np.abs(temp2) ** 2) - temp * np.sum(np.abs(g[k_prime, :]) ** 2))[0])
+        lambda_k[k_prime] ** 2 * np.sum(np.abs(temp2) ** 2) - temp1 * np.sum(np.abs(g[k_prime, :]) ** 2))[0])
 
 
 @numba.jit(fastmath=True, nopython=True)
@@ -128,14 +128,6 @@ def delta(s, C_inv, lambda_k, k_prime):
 #     return sol
 
 
-def ampl_opt_no_csi(alpha, delta, M):
-    return np.sqrt((alpha - M * delta) / (M * delta ** 2))
-
-
-def ampl_top_full_csi():
-    pass
-
-
 @numba.jit(nopython=True)
 def ML_value(gamma_hat, C_inverse, y, s, g, M, T):
     r_out = M * np.log(np.linalg.det(C_inverse)) - M * T * np.log(np.pi) - np.trace(
@@ -144,7 +136,7 @@ def ML_value(gamma_hat, C_inverse, y, s, g, M, T):
 
 
 @numba.jit(nopython=True)
-def is_realpositive(val, tol=1e-15):
+def is_realpositive(val, tol=1e-10):
     return np.imag(val) < tol and np.real(val) >= 0
 
 
@@ -163,64 +155,76 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
 
     sigma2I = sigma2 * np.identity(T)
 
-    r = np.abs(gamma_hat) ** 2 * lambda_k[:, 0] ** 2
-    R = np.diag(r).astype(numba.types.complex128)
-    P = s.T.conj()
+    r = (np.abs(gamma_hat) ** 2 * lambda_k[:, 0] ** 2).astype(np.complex_)
+    R = np.diag(r)
+    s_H = s.T.conj()
 
-    C_inverse = np.linalg.inv((s @ R @ P) + sigma2I)
+    global_C_inverse = np.linalg.inv((s @ R @ s_H) + sigma2I)
 
     while not_converged:
-        temp = gamma_hat
-        temp[k_prime] = 0
+        temp = gamma_hat.copy().astype(np.complex_)
+        temp[k_prime] = 0 + 0j
         y_m_k_prime = y - s @ np.diag(temp) @ g
 
-        if lambda_k[k_prime] == 0:
-            gamma_hat_k_prime = (s[:, k_prime].T.conj() @ C_inverse @ (y_m_k_prime @ g[k_prime, :].T.conj())) / (
-                    s[:, k_prime].T.conj() @ C_inverse @ s[:, k_prime] * np.sum(np.abs(g[k_prime, :]) ** 2))
-        else:
-            C_minus_k_prime_inverse = np.linalg.inv(
-                s @ np.diag(np.abs(temp) ** 2 * lambda_k[:, 0] ** 2).astype(
-                    numba.types.complex128) @ s.T.conj() + sigma2I)
+        # if lambda_k[k_prime] == 0:
+        #     gamma_hat_k_prime = (s[:, k_prime].T.conj() @ C_inverse @ (y_m_k_prime @ g[k_prime, :].T.conj())) / (
+        #             s[:, k_prime].T.conj() @ C_inverse @ s[:, k_prime] * np.sum(np.abs(g[k_prime, :]) ** 2))
+        # else:
+        # C_minus_k_prime_inverse_1 = np.linalg.inv(
+        #     s @ np.diag(np.abs(temp) ** 2 * lambda_k[:, 0] ** 2).astype(
+        #         np.complex_) @ s_H + sigma2I)
 
-            _alpha = alpha(s, C_minus_k_prime_inverse, g, y_m_k_prime, lambda_k, k_prime)
-            _delta = delta(s, C_minus_k_prime_inverse, lambda_k, k_prime)
-            _beta = beta(s, C_minus_k_prime_inverse, g, y_m_k_prime, k_prime)
+        C_inverse = global_C_inverse.copy()
+        r_C = r[k_prime] * C_inverse
+        up = (np.outer(r_C @ s[:, k_prime], s_H[k_prime, :]) @ C_inverse)
+        low = 1 - r[k_prime] * s_H[k_prime, :] @ C_inverse @ s[:, k_prime]
 
-            # Amplitude optimization
-            coef_3 = -2 * M * _delta ** 2
-            coef_2 = -_beta * _delta
-            coef_1 = -2 * M * _delta + 2 * _alpha
-            coef_0 = _beta
-            coef = np.array([coef_3, coef_2, coef_1, coef_0], dtype=np.complex_)
-            res = np.roots(coef)
-            # check for best solution being positive and real
-            sol = 0.0
-            found = False
-            for r in res:
-                if is_realpositive(r):
-                    r = np.real(r)
-                    sol = r if r >= sol else sol
-                    found = True
-            if not found:
-                print('\033[31m No solution for poly. found.')
-                #raise ValueError("No solution for poly. found.")
+        C_minus_k_prime_inverse = C_inverse + up / low
 
-                # do not use this value, retry next time.
-                # fill with previous value
-                # sol = abs(gamma_hat[k_prime])
+        _alpha = alpha(s, C_minus_k_prime_inverse, g, y_m_k_prime, lambda_k, k_prime)
+        _delta = delta(s, C_minus_k_prime_inverse, lambda_k, k_prime)
+        _beta = beta(s, C_minus_k_prime_inverse, g, y_m_k_prime, k_prime)
 
-            r_k_prime_hat = sol
+        # Amplitude optimization
+        coef_3 = -2 * M * _delta ** 2
+        coef_2 = -_beta * _delta
+        coef_1 = -2 * M * _delta + 2 * _alpha
+        coef_0 = _beta
+        coef = np.array([coef_3, coef_2, coef_1, coef_0], dtype=np.complex_)
+        roots = np.roots(coef)
+        # check for best solution being positive and real
+        sol = 0.0
+        found = False
+        for root in roots:
+            if is_realpositive(root):
+                _r = np.real(root)
+                sol = _r if _r >= sol else sol
+                found = True
+        if not found:
+            print('\033[31m No solution for poly. found.')
+            # raise ValueError("No solution for poly. found.")
 
-            # Phase optimization
-            phi_k_prime_hat = np.angle(s[:, k_prime].T.conj() @ C_inverse @ (y_m_k_prime @ g[k_prime, :].T.conj()))
-            gamma_hat_k_prime = r_k_prime_hat * np.exp(1j * phi_k_prime_hat)
+            # do not use this value, retry next time.
+            # fill with previous value
+            # sol = abs(gamma_hat[k_prime])
+
+        r_k_prime_hat = sol
+
+        # Phase optimization
+        phi_k_prime_hat = np.angle(s[:, k_prime].T.conj() @ C_inverse @ (y_m_k_prime @ g[k_prime, :].T.conj()))
+        gamma_hat_k_prime = r_k_prime_hat * np.exp(1j * phi_k_prime_hat)
 
         # Update gamma_hat
         gamma_hat[k_prime] = gamma_hat_k_prime
 
-        C_inverse = np.linalg.inv(
-            s @ np.diag(np.abs(gamma_hat) ** 2 * lambda_k[:, 0] ** 2).astype(
-                numba.types.complex128) @ s.T.conj() + sigma2I)
+        r_lam = r_k_prime_hat ** 2 * lambda_k[k_prime, 0] ** 2
+        up = C_minus_k_prime_inverse @ np.outer(s[:, k_prime], s_H[k_prime, :]) @ C_minus_k_prime_inverse * r_lam
+        low = 1 + s_H[k_prime, :] @ C_minus_k_prime_inverse @ s[:, k_prime] * r_lam
+        global_C_inverse = np.ascontiguousarray(C_minus_k_prime_inverse - up / low)
+
+        # C_inverse_2 = np.linalg.inv(
+        #     s @ np.diag(np.abs(gamma_hat) ** 2 * lambda_k[:, 0] ** 2).astype(
+        #         np.complex_) @ s.T.conj() + sigma2I)
 
         # next iteration
         k_prime = np.mod(k_prime + 1, K)
@@ -229,7 +233,7 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
         iter_number += 1
         if iter_number > iter_max - 1:
             not_converged = False
-    return gamma_hat.copy(), C_inverse.copy()
+    return gamma_hat.copy(), global_C_inverse.copy()
 
 
 def MSE(mat, est):

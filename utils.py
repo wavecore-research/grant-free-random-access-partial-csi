@@ -199,10 +199,12 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
             for r in res:
                 if is_realpositive(r):
                     r = np.real(r)
-                    sol = r if r > sol else sol
+                    sol = r if r >= sol else sol
                     found = True
             if not found:
-                raise ValueError("No solution for poly. found.")
+                print('\033[31m No solution for poly. found.')
+                #raise ValueError("No solution for poly. found.")
+
                 # do not use this value, retry next time.
                 # fill with previous value
                 # sol = abs(gamma_hat[k_prime])

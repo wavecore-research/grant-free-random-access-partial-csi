@@ -53,8 +53,9 @@ MSE_no_csi = np.zeros(SHAPE_MSE, dtype=float)
 # MSE_genie_csi = np.zeros(SHAPE_MSE, dtype=float)
 
 import tqdm
+pbar = tqdm(total=NUM_MONTE_SIM*NUM_LAMBDA*NUM_SNR*NUM_T*NUM_ANT*NUM_K)
 
-for n_sim in tqdm.trange(NUM_MONTE_SIM):
+for n_sim in range(NUM_MONTE_SIM):
     for i_K, K in enumerate(users):
         rho = np.ones((K, 1)) * p_TX
         phi = np.random.uniform(0, 2 * np.pi, size=(K, 1))
@@ -159,7 +160,7 @@ for n_sim in tqdm.trange(NUM_MONTE_SIM):
 
                         MSE_no_csi[n_sim, i_lmbda, i_snr, i_T, i_M, i_K] = utils.MSE(gamma,
                                                                                      gamma_hat_no_CSI)  # utils.ML_value(gamma_no_csi[n_sim, :], C_inverse_no_CSI, y, s, g, M, T)
-
+                        pbar.update()
 """
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -288,5 +289,5 @@ plt.show()
 # plt.tight_layout()
 # plt.show()
 """
-
+pbar.close()
 np.savez("data", MSE_prior_csi=MSE_prior_csi, MSE_partial_csi=MSE_partial_csi, MSE_no_csi=MSE_no_csi)

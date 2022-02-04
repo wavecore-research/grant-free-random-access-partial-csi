@@ -12,26 +12,27 @@ np.random.seed(0)
 
 plt.close('all')
 
-#K = 40  # Number of single-antenna users
-M = 64  # Number of receive antennas
+# K = 40  # Number of single-antenna users
+#M = 64  # Number of receive antennas
 p_TX = 1
 
 # beta_k = np.ones((K, 1))
 eps_a = 0.25
 
-
-
-NUM_MONTE_SIM = 20
-NUM_LAMBDA = 10
-NUM_SNR = 10
-NUM_T = 10
+NUM_MONTE_SIM = 1
+NUM_LAMBDA = 1
+NUM_SNR = 1
+NUM_T = 1
 
 lambdas = np.linspace(0.1, 0.95, num=NUM_LAMBDA)
 snrs_dB = np.linspace(20, -20, num=NUM_SNR)
-snrs = 10 ** (snrs_dB / 10)
+snrs_dB = [0]
+snrs = 10 ** (np.asarray(snrs_dB) / 10)
 preamble_lengths = np.arange(4, 100, step=100 // NUM_T, dtype=int)
-antennas = [16, 32, 64, 128]
-users = [40, 60, 100, 120, 200, 500] # Number of single-antenna users
+lambdas = [0.9]
+preamble_lengths = [40]
+antennas = [128]
+users = [100]  # , 60, 100, 120, 200, 500] # Number of single-antenna users
 
 NUM_ANT = len(antennas)
 NUM_K = len(users)
@@ -53,7 +54,8 @@ MSE_no_csi = np.zeros(SHAPE_MSE, dtype=float)
 # MSE_genie_csi = np.zeros(SHAPE_MSE, dtype=float)
 
 import tqdm
-pbar = tqdm.tqdm(total=NUM_MONTE_SIM*NUM_LAMBDA*NUM_SNR*NUM_T*NUM_ANT*NUM_K)
+
+pbar = tqdm.tqdm(total=NUM_MONTE_SIM * NUM_LAMBDA * NUM_SNR * NUM_T * NUM_ANT * NUM_K)
 
 for n_sim in range(NUM_MONTE_SIM):
     for i_K, K in enumerate(users):
@@ -118,13 +120,14 @@ for n_sim in range(NUM_MONTE_SIM):
 
                         ## Estimator based on partial CSI and iterative ML
                         # Initialization thanks to prior CSI
-                        gamma_hat_partial_CSI, C_inverse_partial_CSI = utils.algorithm(gamma_hat_prior_CSI.copy(),
-                                                                                       lambda_k, s,
-                                                                                       M,
-                                                                                       y, g,
-                                                                                       sigma2,
-                                                                                       T, K,
-                                                                                       iter_max=ITER_MAX)
+                        gamma_hat_partial_CSI, C_inverse_partial_CSI, MSEs_partial = utils.algorithm(
+                            gamma_hat_prior_CSI.copy(),
+                            lambda_k, s,
+                            M,
+                            y, g,
+                            sigma2,
+                            T, K,
+                            iter_max=ITER_MAX, real_gamma=gamma)
                         # gamma_partial_csi[n_sim, i_lmbda, i_snr, i_T, :] = gamma_hat_partial_CSI.copy()
 
                         MSE_partial_csi[n_sim, i_lmbda, i_snr, i_T, i_M, i_K] = utils.MSE(gamma,
@@ -149,18 +152,30 @@ for n_sim in range(NUM_MONTE_SIM):
                         # snr_k_partial_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k[:, 0] ** 2) / sigma2
 
                         # Estimator based on no CSI and iterative ML (as Caire)
-                        gamma_hat_no_CSI, C_inverse_no_CSI = utils.algorithm(np.zeros_like(gamma),
-                                                                             np.ones_like(lambda_k), s, M,
-                                                                             y,
-                                                                             np.zeros_like(g),
-                                                                             sigma2, T,
-                                                                             K, iter_max=ITER_MAX)
+                        gamma_hat_no_CSI, C_inverse_no_CSI, MSEs_no = utils.algorithm(np.zeros_like(gamma),
+                                                                                      np.ones_like(lambda_k), s, M,
+                                                                                      y,
+                                                                                      np.zeros_like(g),
+                                                                                      sigma2, T,
+                                                                                      K, iter_max=ITER_MAX,
+                                                                                      real_gamma=gamma)
                         # gamma_no_csi[n_sim, i_lmbda, i_snr, i_T:] = gamma_hat_no_CSI.copy()
 
                         # snr_k_no_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k ** 2) / sigma2
 
                         MSE_no_csi[n_sim, i_lmbda, i_snr, i_T, i_M, i_K] = utils.MSE(gamma,
                                                                                      gamma_hat_no_CSI)  # utils.ML_value(gamma_no_csi[n_sim, :], C_inverse_no_CSI, y, s, g, M, T)
+
+                        fig = plt.figure()
+                        plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(MSEs_partial), label="Partial CSI")
+                        plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(MSEs_no), label="No CSI")
+                        plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10([MSE_prior_csi[n_sim, i_lmbda, i_snr, i_T, i_M, i_K]]*len(MSEs_partial)), label="Prior CSI")
+                        plt.xlabel("# iterations / K")
+                        plt.ylabel("MSE")
+                        plt.legend()
+                        plt.tight_layout()
+                        plt.show()
+
                         pbar.update()
 """
 from mpl_toolkits.mplot3d import Axes3D

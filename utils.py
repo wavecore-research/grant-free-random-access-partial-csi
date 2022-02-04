@@ -142,7 +142,7 @@ def is_realpositive(val, tol=1e-10):
 
 @numba.jit(nopython=True, fastmath=True)
 def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int, y: np.ndarray, g: np.ndarray,
-              sigma2: float, T: int, K: int, iter_max: int = 1000):
+              sigma2: float, T: int, K: int, real_gamma: np.ndarray, iter_max: int = 1000):
     iter_number = 0
     k_prime = 0
     not_converged = True
@@ -161,6 +161,8 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
 
     global_C_inverse = np.linalg.inv((s @ R @ s_H) + sigma2I)
 
+    MSEs = np.zeros(iter_max, dtype=np.float_)
+
     while not_converged:
         temp = gamma_hat.copy().astype(np.complex_)
         temp[k_prime] = 0 + 0j
@@ -170,14 +172,16 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
         #     gamma_hat_k_prime = (s[:, k_prime].T.conj() @ C_inverse @ (y_m_k_prime @ g[k_prime, :].T.conj())) / (
         #             s[:, k_prime].T.conj() @ C_inverse @ s[:, k_prime] * np.sum(np.abs(g[k_prime, :]) ** 2))
         # else:
-        # C_minus_k_prime_inverse_1 = np.linalg.inv(
+        # C_minus_k_prime_inverse = np.linalg.inv(
         #     s @ np.diag(np.abs(temp) ** 2 * lambda_k[:, 0] ** 2).astype(
         #         np.complex_) @ s_H + sigma2I)
 
         C_inverse = global_C_inverse.copy()
-        r_C = r[k_prime] * C_inverse
-        up = (np.outer(r_C @ s[:, k_prime], s_H[k_prime, :]) @ C_inverse)
-        low = 1 - r[k_prime] * s_H[k_prime, :] @ C_inverse @ s[:, k_prime]
+
+        s_s_H = np.outer(s[:, k_prime], s_H[k_prime, :])
+        lam_gamma = lambda_k[k_prime, :] ** 2 * np.abs(gamma_hat[k_prime] ** 2)
+        up = lam_gamma * C_inverse @ s_s_H @ C_inverse
+        low = 1 - lam_gamma * s_H[k_prime, :] @ C_inverse @ s[:, k_prime]
 
         C_minus_k_prime_inverse = C_inverse + up / low
 
@@ -218,23 +222,26 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
         gamma_hat[k_prime] = gamma_hat_k_prime
 
         r_lam = r_k_prime_hat ** 2 * lambda_k[k_prime, 0] ** 2
-        up = C_minus_k_prime_inverse @ np.outer(s[:, k_prime], s_H[k_prime, :]) @ C_minus_k_prime_inverse * r_lam
+        up = C_minus_k_prime_inverse @ s_s_H @ C_minus_k_prime_inverse * r_lam
         low = 1 + s_H[k_prime, :] @ C_minus_k_prime_inverse @ s[:, k_prime] * r_lam
         global_C_inverse = np.ascontiguousarray(C_minus_k_prime_inverse - up / low)
 
-        # C_inverse_2 = np.linalg.inv(
+        # global_C_inverse = np.linalg.inv(
         #     s @ np.diag(np.abs(gamma_hat) ** 2 * lambda_k[:, 0] ** 2).astype(
         #         np.complex_) @ s.T.conj() + sigma2I)
 
         # next iteration
         k_prime = np.mod(k_prime + 1, K)
 
+        MSEs[iter_number] = MSE(gamma_hat, real_gamma)
+
         # print('Iteration number: ' + str(iter_number) + ', value of cost function: '+ str(ML_value(gamma_hat)))
         iter_number += 1
         if iter_number > iter_max - 1:
             not_converged = False
-    return gamma_hat.copy(), global_C_inverse.copy()
+    return gamma_hat.copy(), global_C_inverse.copy(), MSEs
 
 
-def MSE(mat, est):
-    return np.average(np.abs(np.abs(mat) - np.abs(est)) ** 2)
+@numba.jit(nopython=True, fastmath=True)
+def MSE(mat: np.ndarray, est: np.ndarray):
+    return np.average(np.abs(np.abs(mat.flatten()) - np.abs(est.flatten())) ** 2)

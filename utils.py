@@ -31,6 +31,7 @@ def is_diag(arr):
     return ~np.any(test[:, 1:])
 
 
+@numba.jit(fastmath=True, nopython=True)
 def prob_miss(arr, arr_est) -> float:
     arr = arr.flatten()
     arr_est = arr_est.flatten()
@@ -40,6 +41,7 @@ def prob_miss(arr, arr_est) -> float:
     return 1.0 - (num_correct / num_active)
 
 
+@numba.jit(fastmath=True, nopython=True)
 def prob_false(arr, arr_est) -> float:
     # num inactive devices arr=0 detected as active arr_est = 1
     arr = arr.flatten()
@@ -48,6 +50,21 @@ def prob_false(arr, arr_est) -> float:
     num_users = arr.size
     p_false = np.sum(arr_est[arr == 0]) / (num_users - num_active)
     return p_false
+
+
+@numba.jit(fastmath=True, nopython=True)
+def inv(mat):
+    return np.linalg.inv(mat)
+
+
+@numba.jit(fastmath=True, nopython=True)
+def ZF(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray, y: np.ndarray):
+    MT = int(M * T)
+    y_tilde = y.T.copy().reshape(MT, 1)
+    Gamma = np.zeros((MT, K), dtype=np.complex_)
+    for index_m in range(M):
+        Gamma[0 + index_m * T:T + index_m * T, :] = s @ np.diag(g[:, index_m])
+    return np.linalg.inv(Gamma.conj().T @ Gamma) @ Gamma.conj().T @ y_tilde
 
 
 def beta(d, model="oulu", sigma=0):
@@ -245,3 +262,23 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
 @numba.jit(nopython=True, fastmath=True)
 def MSE(mat: np.ndarray, est: np.ndarray):
     return np.average(np.abs(np.abs(mat.flatten()) - np.abs(est.flatten())) ** 2)
+
+
+def MSE_dB(mat: np.ndarray, est: np.ndarray):
+    return 10 * np.log10(MSE(mat, est))
+
+
+@numba.jit(nopython=True, fastmath=True)
+def SINR(arr, est):
+    I_err = np.abs(np.imag(arr) - np.imag(est))
+    Q_err = np.abs(np.real(arr) - np.real(est))
+    return np.average(np.abs(arr) ** 2 / (I_err ** 2 + Q_err ** 2), axis=-1)
+
+
+def SINR_dB(arr, est):
+    return 10 * np.log10(SINR(arr, est))
+
+
+@numba.jit(nopython=True, fastmath=True)
+def sum_rate(arr, est):
+    return np.sum(np.log2(np.ones(arr.shape[0]) + SINR(arr, est)))

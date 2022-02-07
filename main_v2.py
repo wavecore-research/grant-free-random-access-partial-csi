@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
+import numba
 import numpy as np
+# import jax.numpy as np
 
 import warnings
 from numba.core.errors import NumbaPerformanceWarning
@@ -13,25 +15,31 @@ np.random.seed(0)
 plt.close('all')
 
 # K = 40  # Number of single-antenna users
-#M = 64  # Number of receive antennas
+# M = 64  # Number of receive antennas
 p_TX = 1
 
 # beta_k = np.ones((K, 1))
 eps_a = 0.25
 
-NUM_MONTE_SIM = 1
+NUM_MONTE_SIM = 10000
 NUM_LAMBDA = 1
-NUM_SNR = 2
+NUM_SNR = 1
 NUM_T = 1
 
+NUM_V = 100
+
+snrs_dB = [10]
 lambdas = np.linspace(0.1, 0.95, num=NUM_LAMBDA)
 snrs_dB = np.linspace(20, -20, num=NUM_SNR)
 snrs = 10 ** (np.asarray(snrs_dB) / 10)
-preamble_lengths = np.arange(4, 100, step=100 // NUM_T, dtype=int)
-lambdas = [0.5]
-preamble_lengths = [10]
+preamble_lengths = np.arange(4, 200, step=(200 - 4) // NUM_T, dtype=int)
+lambdas = [0.6]
+preamble_lengths = [20]
 antennas = [128]
-users = [1000]  # , 60, 100, 120, 200, 500] # Number of single-antenna users
+
+users = [100]  # , 60, 100, 120, 200, 500] # Number of single-antenna users
+
+Td = 40  # 40 payload symbols
 
 NUM_ANT = len(antennas)
 NUM_K = len(users)
@@ -40,6 +48,7 @@ NUM_K = len(users)
 
 # SHAPE_GAMMA = (NUM_MONTE_SIM, NUM_LAMBDA, NUM_SNR, NUM_T, K)
 SHAPE_MSE = (NUM_MONTE_SIM, NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K)
+SHAPE_PROB = (NUM_MONTE_SIM, NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K, NUM_V)
 
 # gamma_real = np.zeros(SHAPE_GAMMA, dtype=complex)
 # gamma_prior_csi = np.zeros(SHAPE_GAMMA, dtype=complex)
@@ -52,6 +61,16 @@ MSE_partial_csi = np.zeros(SHAPE_MSE, dtype=float)
 MSE_no_csi = np.zeros(SHAPE_MSE, dtype=float)
 # MSE_genie_csi = np.zeros(SHAPE_MSE, dtype=float)
 
+
+pa_prior_csi = np.zeros(SHAPE_PROB, dtype=float)
+md_prior_csi = np.zeros(SHAPE_PROB, dtype=float)
+
+pa_no_csi = np.zeros(SHAPE_PROB, dtype=float)
+md_no_csi = np.zeros(SHAPE_PROB, dtype=float)
+
+pa_partial_csi = np.zeros(SHAPE_PROB, dtype=float)
+md_partial_csi = np.zeros(SHAPE_PROB, dtype=float)
+
 import tqdm
 
 pbar = tqdm.tqdm(total=NUM_MONTE_SIM * NUM_LAMBDA * NUM_SNR * NUM_T * NUM_ANT * NUM_K)
@@ -63,6 +82,13 @@ for n_sim in range(NUM_MONTE_SIM):
         phi = np.random.uniform(0, 2 * np.pi, size=(K, 1))
         a = np.random.binomial(n=1, p=eps_a, size=(K, 1))
         gamma = np.sqrt(rho) * a * np.exp(1j * phi)
+
+        x_int = np.random.randint(0, 4,  (Td, K))  # 0 to 3
+        x_degrees = x_int * 360 / 4.0 + 45  # 45, 135, 225, 315 degrees
+        x_radians = x_degrees * np.pi / 180.0  # sin() and cos() takes in radians
+        payload = np.cos(x_radians) + 1j * np.sin(x_radians)  # this produces our QPSK complex symbols
+
+        #payload = np.random.normal(0, 1 / np.sqrt(2), (Td, K)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (Td, K))
 
         for i_T, T in enumerate(preamble_lengths):
 
@@ -98,17 +124,20 @@ for n_sim in range(NUM_MONTE_SIM):
                             sigma2)
                         y = s @ np.diag(gamma[:, 0]) @ h + w
 
+                        w_payload = (np.random.normal(0, 1 / np.sqrt(2), (Td, M)) + 1j * np.random.normal(0,
+                                                                                                          1 / np.sqrt(
+                                                                                                              2),
+                                                                                                          (Td,
+                                                                                                           M))) * np.sqrt(
+                            sigma2)
+                        y_payload = payload @ np.diag(gamma[:, 0]) @ h + w_payload
                         # Estimate based on prior csi, assuming all lambdas are zeros, cf. conf. paper
-                        y_tilde = np.reshape(y.T, (M * T, 1))
-                        #D = np.diag(s.reshape(K * T)) @ np.kron(np.ones((T, 1)), np.identity(K))
-                        Gamma = np.zeros((M * T, K), dtype=complex)
-                        for index_m in range(M):
-                            Gamma[0 + index_m * T:T + index_m * T, :] = s @ np.diag(g[:, index_m])
-                        gamma_hat_prior_CSI = np.linalg.inv(Gamma.conj().T @ Gamma) @ Gamma.conj().T @ y_tilde
+
+                        gamma_hat_prior_CSI = utils.ZF(M, T, K, s, g, y)
 
                         # gamma_prior_csi[n_sim, i_lmbda, i_snr, i_T, :] = gamma_hat_prior_CSI.copy()[:, 0]
 
-                        C_inv_prior_CSI = np.linalg.inv(
+                        C_inv_prior_CSI = utils.inv(
                             s @ np.diag(
                                 np.abs(gamma_hat_prior_CSI[:, 0]) ** 2 * lambda_k[:,
                                                                          0] ** 2) @ s.T.conj() + sigma2 * np.identity(
@@ -165,16 +194,90 @@ for n_sim in range(NUM_MONTE_SIM):
                         MSE_no_csi[n_sim, i_lmbda, i_snr, i_T, i_M, i_K] = utils.MSE(gamma,
                                                                                      gamma_hat_no_CSI)  # utils.ML_value(gamma_no_csi[n_sim, :], C_inverse_no_CSI, y, s, g, M, T)
 
-                        fig = plt.figure()
-                        plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(MSEs_partial), label="Partial CSI")
-                        plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(MSEs_no), label="No CSI")
-                        plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10([MSE_prior_csi[n_sim, i_lmbda, i_snr, i_T, i_M, i_K]]*len(MSEs_partial)), label="Prior CSI")
-                        plt.xlabel("# iterations / K")
-                        plt.ylabel("MSE")
-                        plt.legend()
-                        plt.tight_layout()
-                        plt.show()
+                        # fig = plt.figure()
+                        # plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(MSEs_partial), label="Partial CSI")
+                        # plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(MSEs_no), label="No CSI")
+                        # plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(
+                        #     [MSE_prior_csi[n_sim, i_lmbda, i_snr, i_T, i_M, i_K]] * len(MSEs_partial)),
+                        #          label="Prior CSI")
+                        # plt.xlabel("# iterations / K")
+                        # plt.ylabel("MSE")
+                        # plt.legend()
+                        # plt.tight_layout()
+                        # plt.show()
 
+                        fig = plt.figure()
+                        sum_rates = np.zeros(NUM_V, dtype=float)
+                        mses = np.zeros(NUM_V, dtype=float)
+                        correct_users = np.zeros(NUM_V, dtype=int)
+                        considered_active = np.zeros(NUM_V, dtype=int)
+                        for iv, v_dB in enumerate(np.linspace(-200, 20, num=NUM_V)):
+                            v = 10 ** (v_dB / 10)
+
+                            # force lowest v to be zero.
+                            if iv == 0:
+                                v = 0.0
+
+                            v_th = v / np.sqrt(snr)
+
+                            the_slice = np.index_exp[n_sim, i_lmbda, i_snr, i_T, i_M, i_K, iv]
+
+                            act = np.zeros_like(a)
+                            act[np.abs(gamma_hat_prior_CSI) >= v_th] = 1
+
+                            pa_prior_csi[the_slice] = utils.prob_false(a, act)
+                            md_prior_csi[the_slice] = utils.prob_miss(a, act)
+
+                            act = np.zeros_like(a)
+                            act[np.abs(gamma_hat_no_CSI) >= v_th] = 1
+
+                            pa_no_csi[the_slice] = utils.prob_false(a, act)
+                            md_no_csi[the_slice] = utils.prob_miss(a, act)
+
+                            act = np.zeros_like(a)
+                            act[np.abs(gamma_hat_partial_CSI) >= v_th] = 1
+
+                            pa_partial_csi[the_slice] = utils.prob_false(a, act)
+                            md_partial_csi[the_slice] = utils.prob_miss(a, act)
+
+                            # detection
+                            Ka = act.copy()
+                            # if no devices are considered active, than sum rate is zero
+                            if np.sum(Ka) == 0:
+                                sum_rates[iv] = 0
+                                continue
+                            # channel estimation
+                            # s€TxK,
+                            Ka_idx = np.flatnonzero(Ka)
+                            p = s[:, Ka_idx].T  # preambles from considered active users
+                            p_H = p.T.conj()
+                            # transpose y to have right dimensions
+                            h_est = y.T @ p_H @ np.linalg.inv(p @ p_H)
+                            # not the MSE operates on flattened array, thus average MSE over all users
+                            mses[iv] = utils.MSE_dB(h[Ka_idx, :].T, h_est)
+                            # decoding
+                            h_a = h[Ka_idx, :].T
+                            w = np.linalg.inv(h_a.conj().T @ h_a) @ h_a.conj().T
+                            rx_payload = w @ y_payload.T
+                            # snr
+                            mse_payload = utils.MSE_dB(payload[:, Ka_idx].T, rx_payload)
+                            sinr_payload = utils.SINR_dB(payload[:, Ka_idx].T, rx_payload)
+                            # compute sum rate based on correct detected users
+                            # looking for the Ka_idx which are correct
+                            # correct idx are at places where a*Ka = 1
+                            Ka_union = a.flatten() * Ka.flatten()
+                            Ka_union_idx = np.flatnonzero(Ka_union)
+                            Ka_correct, Ka_idx_correct, _ = np.intersect1d(Ka_idx, Ka_union_idx, return_indices=True)
+                            # SINR of the found active users (excluding perceived active but non-active users)
+                            sum_rates[iv] = utils.sum_rate(payload[:, Ka_union_idx].T, rx_payload[Ka_idx_correct, :])
+                            correct_users[iv] = len(Ka_correct)
+                            considered_active[iv] = np.sum(Ka)
+                        plt.plot(sum_rates, label="R")
+                        plt.plot(mses, label="MSE")
+                        plt.plot(correct_users, label="# correct active users")
+                        plt.plot(considered_active, label="# considered active users")
+                        plt.legend()
+                        plt.show()
                         pbar.update()
 """
 from mpl_toolkits.mplot3d import Axes3D
@@ -304,5 +407,18 @@ plt.show()
 # plt.tight_layout()
 # plt.show()
 """
+mean_axis = tuple(range(pa_prior_csi.ndim - 1))
+fig = plt.figure()
+plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Prior CSI", marker="x")
+plt.plot(pa_partial_csi.mean(axis=mean_axis), md_partial_csi.mean(axis=mean_axis), label="Partial CSI", marker="x")
+plt.plot(pa_no_csi.mean(axis=mean_axis), md_no_csi.mean(axis=mean_axis), label="No CSI", marker="x")
+plt.xscale("log")
+plt.yscale("log")
+plt.xlabel("FA")
+plt.ylabel("MD")
+plt.legend()
+plt.tight_layout()
+plt.show()
+
 pbar.close()
 np.savez("data", MSE_prior_csi=MSE_prior_csi, MSE_partial_csi=MSE_partial_csi, MSE_no_csi=MSE_no_csi)

@@ -28,12 +28,13 @@ NUM_T = 1
 
 NUM_V = 100
 
-snrs_dB = [10]
+
 lambdas = np.linspace(0.1, 0.95, num=NUM_LAMBDA)
 snrs_dB = np.linspace(20, -20, num=NUM_SNR)
 snrs = 10 ** (np.asarray(snrs_dB) / 10)
 preamble_lengths = np.arange(4, 200, step=(200 - 4) // NUM_T, dtype=int)
-lambdas = [0.6]
+snrs_dB = [10]
+lambdas = [0.1]
 preamble_lengths = [40]
 antennas = [128]
 
@@ -83,12 +84,12 @@ for n_sim in range(NUM_MONTE_SIM):
         a = np.random.binomial(n=1, p=eps_a, size=(K, 1))
         gamma = np.sqrt(rho) * a * np.exp(1j * phi)
 
-        x_int = np.random.randint(0, 4,  (Td, K))  # 0 to 3
+        x_int = np.random.randint(0, 4, (Td, K))  # 0 to 3
         x_degrees = x_int * 360 / 4.0 + 45  # 45, 135, 225, 315 degrees
         x_radians = x_degrees * np.pi / 180.0  # sin() and cos() takes in radians
         payload = np.cos(x_radians) + 1j * np.sin(x_radians)  # this produces our QPSK complex symbols
 
-        #payload = np.random.normal(0, 1 / np.sqrt(2), (Td, K)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (Td, K))
+        # payload = np.random.normal(0, 1 / np.sqrt(2), (Td, K)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (Td, K))
 
         for i_T, T in enumerate(preamble_lengths):
 
@@ -211,6 +212,10 @@ for n_sim in range(NUM_MONTE_SIM):
                         mses = np.zeros(NUM_V, dtype=float)
                         correct_users = np.zeros(NUM_V, dtype=int)
                         considered_active = np.zeros(NUM_V, dtype=int)
+                        phase_diff = np.abs(np.angle(gamma_hat_partial_CSI) - np.angle(gamma[:, 0]))
+                        plt.figure()
+                        plt.hist(phase_diff)
+                        plt.show()
                         for iv, v_dB in enumerate(np.linspace(-200, 20, num=NUM_V)):
                             v = 10 ** (v_dB / 10)
 
@@ -241,7 +246,8 @@ for n_sim in range(NUM_MONTE_SIM):
                             md_partial_csi[the_slice] = utils.prob_miss(a, act)
 
                             # detection
-                            Ka = act.copy()
+                            # Ka = act.copy()
+                            Ka = a.copy()
                             # if no devices are considered active, than sum rate is zero
                             if np.sum(Ka) == 0:
                                 sum_rates[iv] = 0
@@ -249,30 +255,42 @@ for n_sim in range(NUM_MONTE_SIM):
                             # channel estimation
                             # s€TxK,
                             Ka_idx = np.flatnonzero(Ka)
-                            p = s[:, Ka_idx].T  # preambles from considered active users
-                            p_H = p.T.conj()
-                            # transpose y to have right dimensions
-                            h_est = y.T @ p_H @ np.linalg.inv(p @ p_H)
-                            # not the MSE operates on flattened array, thus average MSE over all users
-                            mses[iv] = utils.MSE_dB(h[Ka_idx, :].T, h_est)
-                            # decoding
-                            h_a = h[Ka_idx, :].T
-                            w = np.linalg.inv(h_a.conj().T @ h_a) @ h_a.conj().T
-                            rx_payload = w @ y_payload.T
-                            # snr
-                            mse_payload = utils.MSE_dB(payload[:, Ka_idx].T, rx_payload)
-                            sinr_payload = utils.SINR_dB(payload[:, Ka_idx].T, rx_payload)
-                            # compute sum rate based on correct detected users
-                            # looking for the Ka_idx which are correct
-                            # correct idx are at places where a*Ka = 1
-                            Ka_union = a.flatten() * Ka.flatten()
-                            Ka_union_idx = np.flatnonzero(Ka_union)
-                            Ka_correct, Ka_idx_correct, _ = np.intersect1d(Ka_idx, Ka_union_idx, return_indices=True)
-                            # SINR of the found active users (excluding perceived active but non-active users)
-                            sum_rates[iv] = utils.sum_rate(payload[:, Ka_union_idx].T, rx_payload[Ka_idx_correct, :])
-                            correct_users[iv] = len(Ka_correct)
-                            considered_active[iv] = np.sum(Ka)
-                        plt.plot(sum_rates, label="R")
+                            # p = s[:, Ka_idx].T  # preambles from considered active users
+                            # p_H = p.T.conj()
+                            # # transpose y to have right dimensions
+                            # h_est = y.T @ p_H @ np.linalg.inv(p @ p_H)
+                            # # not the MSE operates on flattened array, thus average MSE over all users
+                            # mses[iv] = utils.MSE_dB(h[Ka_idx, :].T, h_est)
+                            # # decoding
+                            # h_a = h[Ka_idx, :].T
+
+                            G = g.T[:, Ka_idx].copy()
+                            S_a = s.T[Ka_idx, :].copy()
+                            Y = y.T.copy()
+                            gamma_diag = np.diag(gamma_hat_partial_CSI[Ka_idx]).copy()
+                            S_a_H = S_a.conj().T.copy()
+                            S_a_inverse = S_a_H @ np.linalg.inv(S_a @ S_a_H)
+                            E = (Y - G @ S_a) @ S_a_inverse
+                            H = G + E
+
+                            mses[iv] = utils.MSE_dB(h[Ka_idx, :].T, H)
+
+                            # w = np.linalg.inv(h_a.conj().T @ h_a) @ h_a.conj().T
+                            # rx_payload = w @ y_payload.T
+                            # # snr
+                            # mse_payload = utils.MSE_dB(payload[:, Ka_idx].T, rx_payload)
+                            # sinr_payload = utils.SINR_dB(payload[:, Ka_idx].T, rx_payload)
+                            # # compute sum rate based on correct detected users
+                            # # looking for the Ka_idx which are correct
+                            # # correct idx are at places where a*Ka = 1
+                            # Ka_union = a.flatten() * Ka.flatten()
+                            # Ka_union_idx = np.flatnonzero(Ka_union)
+                            # Ka_correct, Ka_idx_correct, _ = np.intersect1d(Ka_idx, Ka_union_idx, return_indices=True)
+                            # # SINR of the found active users (excluding perceived active but non-active users)
+                            # sum_rates[iv] = utils.sum_rate(payload[:, Ka_union_idx].T, rx_payload[Ka_idx_correct, :])
+                            # correct_users[iv] = len(Ka_correct)
+                            # considered_active[iv] = np.sum(Ka)
+                        # plt.plot(sum_rates, label="R")
                         plt.plot(mses, label="MSE")
                         plt.plot(correct_users, label="# correct active users")
                         plt.plot(considered_active, label="# considered active users")

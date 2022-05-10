@@ -27,22 +27,30 @@ p_TX = 1
 # beta_k = np.ones((K, 1))
 eps_a = 0.1
 
-NUM_MONTE_SIM = 2
-NUM_NOISE_REALIZATIONS = 50
+NUM_MONTE_SIM = 4
+NUM_NOISE_REALIZATIONS = 500
 NUM_LAMBDA = 1
-NUM_SNR = 10
-NUM_T = 4  # number of diff preambles per run 10->40
+NUM_SNR = 1
+NUM_T = 1  # number of diff preambles per run 10->40
 
 NUM_V = 200
 
 lambdas = np.linspace(0.1, 0.95, num=NUM_LAMBDA)
-preamble_lengths = np.arange(10, 40, step=(40 - 10) // NUM_T, dtype=int)
+preamble_lengths = np.linspace(10, 40, num=NUM_T).astype(int)
 
-snrs_dB = np.linspace(20, -20, num=NUM_SNR)
+snrs_dB = np.linspace(-20, 20, num=NUM_SNR)
 snrs = 10 ** (np.asarray(snrs_dB) / 10)
-antennas = [32] #, 64, 128]
+antennas = [128]  # , 64, 128]
 
-users = [10 , 60] #, 60, 100, 120, 200, 500]  # Number of single-antenna users
+users = [200]  # , 60, 100, 120, 200, 500]  # Number of single-antenna users
+
+params = {
+    "lambdas": lambdas,
+    "preamble_lengths":preamble_lengths,
+    "snrs_dB":snrs_dB,
+    "antennas":antennas,
+    "users":users
+}
 
 # Td = 40  # 40 payload symbols
 
@@ -52,7 +60,7 @@ NUM_K = len(users)
 # NUM_SIM = NUM_MONTE_SIM * NUM_LAMBDA * NUM_SNR
 
 # SHAPE_GAMMA = (NUM_MONTE_SIM, NUM_LAMBDA, NUM_SNR, NUM_T, K)
-SHAPE_MSE = (NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K)
+# SHAPE_MSE = (NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K)
 SHAPE_PROB = (NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K, NUM_V)
 
 # gamma_real = np.zeros(SHAPE_GAMMA, dtype=complex)
@@ -61,10 +69,10 @@ SHAPE_PROB = (NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K, NUM_V)
 # gamma_no_csi = np.zeros(SHAPE_GAMMA, dtype=complex)
 # gamma_genie_csi = np.zeros(SHAPE_GAMMA, dtype=complex)
 
-MSE_prior_csi = np.zeros(SHAPE_MSE, dtype=float)
-MSE_partial_csi = np.zeros(SHAPE_MSE, dtype=float)
-MSE_partial_csi_ZF = np.zeros(SHAPE_MSE, dtype=float)
-MSE_no_csi = np.zeros(SHAPE_MSE, dtype=float)
+# MSE_prior_csi = np.zeros(SHAPE_MSE, dtype=float)
+# MSE_partial_csi = np.zeros(SHAPE_MSE, dtype=float)
+# MSE_partial_csi_ZF = np.zeros(SHAPE_MSE, dtype=float)
+# MSE_no_csi = np.zeros(SHAPE_MSE, dtype=float)
 # MSE_genie_csi = np.zeros(SHAPE_MSE, dtype=float)
 
 
@@ -85,15 +93,18 @@ pbar = tqdm.tqdm(total=NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS * NUM_LAMBDA * NUM
 for n_sim_monto in range(NUM_MONTE_SIM):
 
     # for each monto carlo, generate a fixed channel realization
-    g_mk = [[[np.array([0])] * NUM_ANT] * NUM_LAMBDA] * NUM_K  # pre-allocate a vector holding the channel realizations
+    g_mk = {}  # pre-allocate a vector holding the channel realizations
 
     for _i_K, _k in enumerate(users):
+        g_mk[_i_K] = {}
         for _i_lmbda, lambda_corr in enumerate(lambdas):
+            g_mk[_i_K][_i_lmbda] = {}
             lambda_k = np.ones((_k, 1)) * lambda_corr
             lambda_compl_k = np.sqrt(1 - lambda_k ** 2)
             for _i_M, _m in enumerate(antennas):
                 g_mk[_i_K][_i_lmbda][_i_M] = np.diag(lambda_compl_k[:, 0]) @ (
-                        np.random.normal(0, 1 / np.sqrt(2), (_k, _m)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (_k, _m)))
+                        np.random.normal(0, 1 / np.sqrt(2), (_k, _m)) + 1j * np.random.normal(0, 1 / np.sqrt(2),
+                                                                                              (_k, _m)))
 
     for n_sim_noise in range(NUM_NOISE_REALIZATIONS):
         for i_K, K in enumerate(users):
@@ -183,9 +194,11 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                             #                                                               0])  # utils.ML_value(gamma_prior_csi[n_sim, :], C_inv_prior_CSI, y, s, g, M, T)
 
                             ## Estimator based on partial CSI and iterative ML
+
+                            gamma_init = np.zeros_like(gamma_hat_prior_CSI) # or gamma_hat_partial_CSI_ZF.copy()
                             # Initialization thanks to prior CSI
                             gamma_hat_partial_CSI, C_inverse_partial_CSI, MSEs_partial = utils.algorithm(
-                                gamma_hat_prior_CSI.copy(),
+                                gamma_init,
                                 lambda_k, s,
                                 M,
                                 y, g,
@@ -216,7 +229,7 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                             # snr_k_partial_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k[:, 0] ** 2) / sigma2
 
                             # Estimator based on no CSI and iterative ML (as Caire)
-                            gamma_hat_no_CSI, C_inverse_no_CSI, MSEs_no = utils.algorithm(np.zeros_like(gamma),
+                            gamma_hat_no_CSI, C_inverse_no_CSI, MSEs_no = utils.algorithm(gamma_init,
                                                                                           np.ones_like(lambda_k), s, M,
                                                                                           y,
                                                                                           np.zeros_like(g),
@@ -227,8 +240,8 @@ for n_sim_monto in range(NUM_MONTE_SIM):
 
                             # snr_k_no_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k ** 2) / sigma2
 
-                            MSE_no_csi[i_lmbda, i_snr, i_T, i_M, i_K] = utils.MSE(gamma,
-                                                                                  gamma_hat_no_CSI)  # utils.ML_value(gamma_no_csi[n_sim, :], C_inverse_no_CSI, y, s, g, M, T)
+                            # MSE_no_csi[i_lmbda, i_snr, i_T, i_M, i_K] = utils.MSE(gamma,
+                            #                                                       gamma_hat_no_CSI)  # utils.ML_value(gamma_no_csi[n_sim, :], C_inverse_no_CSI, y, s, g, M, T)
 
                             # fig = plt.figure()
                             # plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(MSEs_partial), label="Partial CSI")
@@ -253,12 +266,21 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                             # plt.hist(phase_diff)
                             # plt.show()
 
-                            for iv, v_dB in enumerate(np.linspace(-200, 20, num=NUM_V)):
+                            # fig, axs = plt.subplots(5, 1, sharex=True, sharey=True)
+                            # axs[0].stem(np.abs(gamma_hat_prior_CSI), label="prior CSI")
+                            # axs[1].stem(np.abs(gamma_hat_partial_CSI), label="partial CSI")
+                            # axs[2].stem(np.abs(gamma_hat_partial_CSI_ZF), label="prior CSI")
+                            # axs[3].stem(np.abs(gamma_hat_no_CSI), label="no CSI")
+                            # axs[4].stem(np.abs(gamma[:, 0]), label="real")
+                            # plt.legend()
+                            # plt.show()
+
+                            for iv, v_dB in enumerate(np.linspace(-40, 40, num=NUM_V)):
                                 v = 10 ** (v_dB / 10)
 
                                 # force lowest v to be zero.
                                 if iv == 0:
-                                    v = 0.0
+                                    v = -1.0
 
                                 v_th = v / np.sqrt(snr)
 
@@ -486,7 +508,7 @@ md_no_csi /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
 np.savez(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data"), pa_prior_csi=pa_prior_csi,
          md_prior_csi=md_prior_csi, pa_partial_csi_ZF=pa_partial_csi_ZF, md_partial_csi_ZF=md_partial_csi_ZF,
          pa_partial_csi=pa_partial_csi, md_partial_csi=md_partial_csi,
-         pa_no_csi=pa_no_csi, md_no_csi=md_no_csi)
+         pa_no_csi=pa_no_csi, md_no_csi=md_no_csi, params=params, SHAPE_PROB=SHAPE_PROB)
 
 mean_axis = tuple(range(pa_prior_csi.ndim - 1))
 fig = plt.figure()

@@ -152,7 +152,7 @@ def ML_value(gamma_hat, C_inverse, y, s, g, M, T):
 
 
 @numba.jit(nopython=True)
-def is_realpositive(val, tol=1e-10):
+def is_realpositive(val, tol=1e-5):
     return np.imag(val) < tol and np.real(val) >= 0
 
 

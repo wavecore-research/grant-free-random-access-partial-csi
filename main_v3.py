@@ -16,7 +16,7 @@ from numba.core.errors import NumbaPerformanceWarning
 
 warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 
-np.random.seed(0)
+np.random.seed(666)
 
 plt.close('all')
 
@@ -27,22 +27,22 @@ p_TX = 1
 # beta_k = np.ones((K, 1))
 eps_a = 0.1
 
-NUM_MONTE_SIM = 4
-NUM_NOISE_REALIZATIONS = 500
+NUM_MONTE_SIM = 1
+NUM_NOISE_REALIZATIONS = 100
 NUM_LAMBDA = 1
 NUM_SNR = 1
 NUM_T = 1  # number of diff preambles per run 10->40
 
 NUM_V = 200
 
-lambdas = np.linspace(0.1, 0.95, num=NUM_LAMBDA)
+lambdas = np.linspace(0.8, 0.95, num=NUM_LAMBDA)
 preamble_lengths = np.linspace(10, 40, num=NUM_T).astype(int)
 
 snrs_dB = np.linspace(-20, 20, num=NUM_SNR)
 snrs = 10 ** (np.asarray(snrs_dB) / 10)
-antennas = [128]  # , 64, 128]
+antennas = [128] #[32, 64, 128]
 
-users = [200]  # , 60, 100, 120, 200, 500]  # Number of single-antenna users
+users = [100] #[60, 100, 120, 200, 500]  # Number of single-antenna users
 
 params = {
     "lambdas": lambdas,
@@ -229,10 +229,8 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                             # snr_k_partial_CSI = (np.linalg.norm(g, axis=1) ** 2 + M * lambda_k[:, 0] ** 2) / sigma2
 
                             # Estimator based on no CSI and iterative ML (as Caire)
-                            gamma_hat_no_CSI, C_inverse_no_CSI, MSEs_no = utils.algorithm(gamma_init,
-                                                                                          np.ones_like(lambda_k), s, M,
+                            gamma_hat_no_CSI, C_inverse_no_CSI, MSEs_no = utils.algorithm_no_csi(np.zeros_like(gamma_init), s, M,
                                                                                           y,
-                                                                                          np.zeros_like(g),
                                                                                           sigma2, T,
                                                                                           K, iter_max=ITER_MAX,
                                                                                           real_gamma=gamma)
@@ -265,7 +263,7 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                             # plt.title("Phase difference in degrees")
                             # plt.hist(phase_diff)
                             # plt.show()
-
+                            #
                             # fig, axs = plt.subplots(5, 1, sharex=True, sharey=True)
                             # axs[0].stem(np.abs(gamma_hat_prior_CSI), label="prior CSI")
                             # axs[1].stem(np.abs(gamma_hat_partial_CSI), label="partial CSI")

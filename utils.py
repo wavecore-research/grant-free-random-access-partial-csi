@@ -66,30 +66,30 @@ def ZF(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray, y: np.ndarray):
         Gamma[0 + index_m * T:T + index_m * T, :] = s @ np.diag(g[:, index_m])
     return np.linalg.inv(Gamma.conj().T @ Gamma) @ Gamma.conj().T @ y_tilde
 
-
-def beta(d, model="oulu", sigma=0):
-    d = d / 1000
-
-    if model in "oulu":
-        pl0 = 128.95
-        n = 2.32
-        sigma = 7.8
-    elif model in "dortmund":
-        pl0 = 132.25
-        n = 2.65
-    elif model in "three-slope":
-        d = d * 1000  # here expressed in meters
-        if d < 10:
-            return 10 ** (-81.2 / 10)
-        elif d < 50:
-            return 10 ** ((-61.2 - 20 * np.log10(d)) / 10)
-        else:
-            return 10 ** ((-35.7 - 35 * np.log10(d) + np.random.normal(scale=8)) / 10)
-    else:
-        return ValueError
-
-    pl_db = pl0 + 10 * n * np.log10(d) + np.random.normal(scale=sigma)
-    return 10 ** (- pl_db / 10)
+#
+# def beta(d, model="oulu", sigma=0):
+#     d = d / 1000
+#
+#     if model in "oulu":
+#         pl0 = 128.95
+#         n = 2.32
+#         sigma = 7.8
+#     elif model in "dortmund":
+#         pl0 = 132.25
+#         n = 2.65
+#     elif model in "three-slope":
+#         d = d * 1000  # here expressed in meters
+#         if d < 10:
+#             return 10 ** (-81.2 / 10)
+#         elif d < 50:
+#             return 10 ** ((-61.2 - 20 * np.log10(d)) / 10)
+#         else:
+#             return 10 ** ((-35.7 - 35 * np.log10(d) + np.random.normal(scale=8)) / 10)
+#     else:
+#         return ValueError
+#
+#     pl_db = pl0 + 10 * n * np.log10(d) + np.random.normal(scale=sigma)
+#     return 10 ** (- pl_db / 10)
 
 
 def generate_user_pos(num, size) -> np.ndarray:
@@ -114,8 +114,7 @@ def H(arr: np.ndarray):
 def alpha(s, C_inv, g, y_m_k_prime, lambda_k, k_prime):
     temp1 = s[:, k_prime].T.conj() @ C_inv @ s[:, k_prime]
     temp2 = y_m_k_prime.T.conj() @ C_inv @ s[:, k_prime]
-    return float(np.real(
-        lambda_k[k_prime] ** 2 * np.sum(np.abs(temp2) ** 2) - temp1 * np.sum(np.abs(g[k_prime, :]) ** 2))[0])
+    return (lambda_k[k_prime] ** 2 * np.sum(np.abs(temp2) ** 2) - temp1 * np.sum(np.abs(g[k_prime, :]) ** 2)).item()
 
 
 @numba.jit(fastmath=True, nopython=True)
@@ -125,7 +124,7 @@ def beta(s, C_inv, g, y_m_k_prime, k_prime):
 
 @numba.jit(fastmath=True, nopython=True)
 def delta(s, C_inv, lambda_k, k_prime):
-    return float(np.real(s[:, k_prime].T.conj() @ C_inv @ s[:, k_prime] * lambda_k[k_prime] ** 2)[0])
+    return (s[:, k_prime].T.conj() @ C_inv @ s[:, k_prime] * lambda_k[k_prime] ** 2).item()
 
 
 # @numba.jit(nopython=True)
@@ -258,6 +257,85 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
             not_converged = False
     return gamma_hat.copy(), global_C_inverse.copy(), MSEs
 
+# @numba.jit(nopython=True, fastmath=True)
+def algorithm_no_csi(gamma_hat: np.ndarray, s: np.ndarray, M: int, y: np.ndarray,
+              sigma2: float, T: int, K: int, real_gamma: np.ndarray, iter_max: int = 1000):
+    lambda_k = np.ones((K, 1))
+
+    iter_number = 0
+    k_prime = 0
+    not_converged = True
+
+    gamma_hat = gamma_hat[:, 0].copy()
+    lambda_k = lambda_k.copy()
+    s = s.copy()
+    y = y.copy()
+    g = np.zeros((K, M), dtype=np.complex_)
+
+    sigma2I = sigma2 * np.identity(T)
+
+    r = (np.abs(gamma_hat) ** 2 * lambda_k[:, 0] ** 2).astype(np.complex_)
+    R = np.diag(r)
+    s_H = s.T.conj()
+
+    global_C_inverse = np.linalg.inv((s @ R @ s_H) + sigma2I)
+
+    MSEs = np.zeros(iter_max, dtype=np.float_)
+
+    while not_converged:
+        temp = gamma_hat.copy().astype(np.complex_)
+        temp[k_prime] = 0 + 0j
+        y_m_k_prime = y - s @ np.diag(temp) @ g
+
+        # if lambda_k[k_prime] == 0:
+        #     gamma_hat_k_prime = (s[:, k_prime].T.conj() @ C_inverse @ (y_m_k_prime @ g[k_prime, :].T.conj())) / (
+        #             s[:, k_prime].T.conj() @ C_inverse @ s[:, k_prime] * np.sum(np.abs(g[k_prime, :]) ** 2))
+        # else:
+        # C_minus_k_prime_inverse = np.linalg.inv(
+        #     s @ np.diag(np.abs(temp) ** 2 * lambda_k[:, 0] ** 2).astype(
+        #         np.complex_) @ s_H + sigma2I)
+
+        C_inverse = global_C_inverse.copy()
+
+        s_s_H = np.outer(s[:, k_prime], s_H[k_prime, :])
+        lam_gamma = lambda_k[k_prime, :] ** 2 * np.abs(gamma_hat[k_prime] ** 2)
+        up = lam_gamma * C_inverse @ s_s_H @ C_inverse
+        low = 1 - lam_gamma * s_H[k_prime, :] @ C_inverse @ s[:, k_prime]
+
+        C_minus_k_prime_inverse = C_inverse + up / low
+
+        _alpha = alpha(s, C_minus_k_prime_inverse, g, y_m_k_prime, lambda_k, k_prime)
+        _delta = delta(s, C_minus_k_prime_inverse, lambda_k, k_prime)
+        #_beta = beta(s, C_minus_k_prime_inverse, g, y_m_k_prime, k_prime)
+
+        # Amplitude optimization
+        r_k_prime_hat = np.sqrt((_alpha - M*_delta)/(M*_delta**2))
+
+        if np.imag(r_k_prime_hat) > 1e-5: # if imaginary apart is greater than a tolerance, we expect it to be imagniary, not real
+            r_k_prime_hat = 0
+
+        # Update gamma_hat
+        gamma_hat[k_prime] = r_k_prime_hat
+
+        r_lam = r_k_prime_hat ** 2 * lambda_k[k_prime, 0] ** 2
+        up = C_minus_k_prime_inverse @ s_s_H @ C_minus_k_prime_inverse * r_lam
+        low = 1 + s_H[k_prime, :] @ C_minus_k_prime_inverse @ s[:, k_prime] * r_lam
+        global_C_inverse = np.ascontiguousarray(C_minus_k_prime_inverse - up / low)
+
+        # global_C_inverse = np.linalg.inv(
+        #     s @ np.diag(np.abs(gamma_hat) ** 2 * lambda_k[:, 0] ** 2).astype(
+        #         np.complex_) @ s.T.conj() + sigma2I)
+
+        # next iteration
+        k_prime = np.mod(k_prime + 1, K)
+
+        MSEs[iter_number] = MSE(gamma_hat, real_gamma)
+
+        # print('Iteration number: ' + str(iter_number) + ', value of cost function: '+ str(ML_value(gamma_hat)))
+        iter_number += 1
+        if iter_number > iter_max - 1:
+            not_converged = False
+    return gamma_hat.copy(), global_C_inverse.copy(), MSEs
 
 @numba.jit(nopython=True, fastmath=True)
 def MSE(mat: np.ndarray, est: np.ndarray):

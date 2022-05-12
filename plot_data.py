@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
+plt.close("all")
+
 
 def same_prob_args(x1, x2):
     """
@@ -46,22 +48,37 @@ with np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data.npz
     snrs = 10 ** (np.asarray(snrs_db) / 10)
 
     mean_axis = tuple(range(pa_prior_csi.ndim - 1))
+
+    fig = plt.figure()
+    plt.plot(pa_prior_csi[-1, -1, 0, 0, -1, :], md_prior_csi[-1, -1, 0, 0, -1, :], label="Full CSI (ZF)", marker="x")
+    plt.plot(pa_partial_csi_ZF[-1, -1, 0, 0, -1, :], md_partial_csi_ZF[-1, -1, 0, 0, -1, :], label="Partial CSI (ZF)",
+             marker="x")
+    plt.plot(pa_partial_csi[-1, -1, 0, 0, -1, :], md_partial_csi[-1, -1, 0, 0, -1, :], label="Partial CSI (algo)",
+             marker="x")
+    plt.plot(pa_no_csi[-1, -1, 0, 0, -1, :], md_no_csi[-1, -1, 0, 0, -1, :], label="No CSI (algo)", marker="x")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xlabel("FA")
+    plt.ylabel("MD")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
     plt.figure()
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)
 
-    plt.plot(snrs_db, x1[0, :, 0, 0, 0], label="Full CSI (ZF)")
+    plt.plot(snrs_db, x1[-1, :, 0, 0, -1], label="Full CSI (ZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi_ZF, md_partial_csi_ZF)
-    plt.plot(snrs_db, x1[0, :, 0, 0, 0], label="Partial CSI (ZF)")
+    plt.plot(snrs_db, x1[-1, :, 0, 0, -1], label="Partial CSI (ZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
-    plt.plot(snrs_db, x1[0, :, 0, 0, 0], label="Partial CSI (algo)")
+    plt.plot(snrs_db, x1[-1, :, 0, 0, -1], label="Partial CSI (algo)")
 
     # x1, x2, args = same_prob_args(pa_no_csi, md_no_csi)
     # plt.scatter(snrs_db, x1[0, :, 0, 0, 0], label="No CSI (algo) x1")
     # plt.scatter(snrs_db, x2[0, :, 0, 0, 0], label="No CSI (algo) x2")
-
 
     plt.yscale("log")
     plt.xlabel("SNR")
@@ -75,16 +92,16 @@ with np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data.npz
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)
 
-    plt.plot(Ms, x2[0, 0, 0, :, 0], label="Full CSI (ZF)")
+    plt.plot(Ms, x2[-1, 0, 0, :, -1], label="Full CSI (ZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi_ZF, md_partial_csi_ZF)
-    plt.plot(Ms, x2[0, 0, 0, :, 0], label="Partial CSI (ZF)")
+    plt.plot(Ms, x2[-1, 0, 0, :, -1], label="Partial CSI (ZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
-    plt.plot(Ms, x2[0, 0, 0, :, 0], label="Partial CSI (algo)")
+    plt.plot(Ms, x2[-1, 0, 0, :, -1], label="Partial CSI (algo)")
 
     x1, x2, args = same_prob_args(pa_no_csi, md_no_csi)
-    plt.plot(Ms, x2[0, 0, 0, :, 0], label="No CSI (algo)")
+    plt.plot(Ms, x2[-1, 0, 0, :, -1], label="No CSI (algo)")
 
     # x1, x2, args = same_prob_args(pa_no_csi, md_no_csi)
     # plt.scatter(snrs_db, x1[0, :, 0, 0, 0], label="No CSI (algo) x1")
@@ -97,21 +114,23 @@ with np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data.npz
     plt.tight_layout()
     plt.show()
 
+    # (NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K, NUM_V)
+
     lambdas = params["lambdas"]
     plt.figure()
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)
 
-    plt.plot(lambdas, x1[:, 0, 0, 0, 0], label="Full CSI (ZF)")
+    plt.plot(lambdas, x1[:, 0, 0, 0, -1], label="Full CSI (ZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi_ZF, md_partial_csi_ZF)
-    plt.plot(lambdas, x1[:, 0, 0, 0, 0], label="Partial CSI (ZF)")
+    plt.plot(lambdas, x1[:, 0, 0, 0, -1], label="Partial CSI (ZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
-    plt.plot(lambdas, x1[:, 0, 0, 0, 0], label="Partial CSI (algo)")
+    plt.plot(lambdas, x1[:, 0, 0, 0, -1], label="Partial CSI (algo)")
 
     x1, x2, args = same_prob_args(pa_no_csi, md_no_csi)
-    plt.plot(lambdas, x1[:, 0, 0, 0, 0], label="No CSI (algo)")
+    plt.plot(lambdas, x1[:, 0, 0, 0, -1], label="No CSI (algo)")
 
     # x1, x2, args = same_prob_args(pa_no_csi, md_no_csi)
     # plt.scatter(snrs_db, x1[0, :, 0, 0, 0], label="No CSI (algo) x1")
@@ -121,5 +140,36 @@ with np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data.npz
     plt.xlabel("$\lambda$")
     plt.ylabel("Prob")
     plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    import matplotlib.pyplot as plt;
+
+    cmap = plt.cm.get_cmap('viridis')
+
+    colors = [cmap(x) for x in np.linspace(0,0.8,num=4)]
+
+    linestyles = [
+        'solid',  # Same as (0, ()) or '-'
+        'dotted',  # Same as (0, (1, 1)) or ':'
+        'dashed',  # Same as '--'
+        'dashdot']
+    fig,ax = plt.subplots()
+    i_lambdas = [2,9]
+    for iil, il in enumerate(i_lambdas):
+        ax.plot(pa_prior_csi[il, -1, 0, 0, -1, :], md_prior_csi[il, -1, 0, 0, -1, :], label=lambdas[il], color=f"C{iil}", ls=linestyles[0])
+        ax.plot(pa_partial_csi_ZF[-1, -1, 0, 0, -1, :], md_partial_csi_ZF[il, -1, 0, 0, -1, :], color=f"C{iil}", ls=linestyles[1])
+        ax.plot(pa_partial_csi[il, -1, 0, 0, -1, :], md_partial_csi[il, -1, 0, 0, -1, :], color=f"C{iil}", ls=linestyles[2])
+        ax.plot(pa_no_csi[il, -1, 0, 0, -1, :], md_no_csi[il, -1, 0, 0, -1, :], color=f"C{iil}", ls=linestyles[3])
+
+    lines = ax.get_lines()
+    legend1 = plt.legend([lines[i] for i in [0, 1, 2, 3]], ["Full CSI (ZF)", "Partial CSI (ZF)", "Partial CSI (algo)", "No CSI (algo)"], loc=3, )
+    legend2 = plt.legend([lines[i] for i in [j*4 for j in range(len(i_lambdas))]], [f"{lambdas[il]:.2f} ({(1-lambdas[il]**2)*100:.1f}%)" for il in i_lambdas], loc=8, title="$\lambda$ (1-$\lambda^2$%)")
+    ax.add_artist(legend1)
+    ax.add_artist(legend2)
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xlabel("FA")
+    plt.ylabel("MD")
     plt.tight_layout()
     plt.show()

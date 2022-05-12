@@ -144,12 +144,12 @@ def delta(s, C_inv, lambda_k, k_prime):
 #         raise ValueError("No solution for poly. found.")
 #     return sol
 
-
-@numba.jit(nopython=True)
-def ML_value(gamma_hat, C_inverse, y, s, g, M, T):
-    r_out = M * np.log(np.linalg.det(C_inverse)) - M * T * np.log(np.pi) - np.trace(
-        (y - s @ np.diag(gamma_hat) @ g).T.conj() @ C_inverse @ (y - s @ np.diag(gamma_hat) @ g))
-    return np.real(r_out)
+#
+# @numba.jit(nopython=True)
+# def ML_value(gamma_hat, C_inverse, y, s, g, M, T):
+#     r_out = M * np.log(np.linalg.det(C_inverse)) - M * T * np.log(np.pi) - np.trace(
+#         (y - s @ np.diag(gamma_hat) @ g).T.conj() @ C_inverse @ (y - s @ np.diag(gamma_hat) @ g))
+#     return np.real(r_out)
 
 
 @numba.jit(nopython=True)
@@ -178,7 +178,7 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
 
     global_C_inverse = np.linalg.inv((s @ R @ s_H) + sigma2I)
 
-    MSEs = np.zeros(iter_max, dtype=np.float_)
+   # MSEs = np.zeros(iter_max, dtype=np.float_)
 
     while not_converged:
         temp = gamma_hat.copy().astype(np.complex_)
@@ -250,13 +250,13 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
         # next iteration
         k_prime = np.mod(k_prime + 1, K)
 
-        MSEs[iter_number] = MSE(gamma_hat, real_gamma)
+        # MSEs[iter_number] = MSE(gamma_hat, real_gamma)
 
         # print('Iteration number: ' + str(iter_number) + ', value of cost function: '+ str(ML_value(gamma_hat)))
         iter_number += 1
         if iter_number > iter_max - 1:
             not_converged = False
-    return gamma_hat.copy(), global_C_inverse.copy(), MSEs
+    return gamma_hat.copy(), global_C_inverse.copy(), None # MSEs
 
 
 # @numba.jit(nopython=True, fastmath=True)
@@ -282,7 +282,7 @@ def algorithm_no_csi(gamma_hat: np.ndarray, s: np.ndarray, M: int, y: np.ndarray
 
     global_C_inverse = np.linalg.inv((s @ R @ s_H) + sigma2I)
 
-    MSEs = np.zeros(iter_max, dtype=np.float_)
+   #  MSEs = np.zeros(iter_max, dtype=np.float_)
 
     while not_converged:
         temp = gamma_hat.copy().astype(np.complex_)
@@ -332,22 +332,22 @@ def algorithm_no_csi(gamma_hat: np.ndarray, s: np.ndarray, M: int, y: np.ndarray
         # next iteration
         k_prime = np.mod(k_prime + 1, K)
 
-        MSEs[iter_number] = MSE(gamma_hat, real_gamma)
+        # MSEs[iter_number] = MSE(gamma_hat, real_gamma)
 
         # print('Iteration number: ' + str(iter_number) + ', value of cost function: '+ str(ML_value(gamma_hat)))
         iter_number += 1
         if iter_number > iter_max - 1:
             not_converged = False
-    return gamma_hat.copy(), global_C_inverse.copy(), MSEs
+    return gamma_hat.copy(), global_C_inverse.copy(), None # MSEs
 
-
-@numba.jit(nopython=True, fastmath=True)
-def MSE(mat: np.ndarray, est: np.ndarray):
-    return np.average(np.abs(np.abs(mat.flatten()) - np.abs(est.flatten())) ** 2)
-
-
-def MSE_dB(mat: np.ndarray, est: np.ndarray):
-    return 10 * np.log10(MSE(mat, est))
+#
+# @numba.jit(nopython=True, fastmath=True)
+# def MSE(mat: np.ndarray, est: np.ndarray):
+#     return np.average(np.abs(np.abs(mat.flatten()) - np.abs(est.flatten())) ** 2)
+#
+#
+# def MSE_dB(mat: np.ndarray, est: np.ndarray):
+#     return 10 * np.log10(MSE(mat, est))
 
 
 @numba.jit(nopython=True, fastmath=True)

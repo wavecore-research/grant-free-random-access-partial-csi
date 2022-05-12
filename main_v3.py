@@ -1,13 +1,13 @@
 import os
 import warnings
 
-import matplotlib
-
-matplotlib.use('Qt5Agg')
+# import matplotlib
+#
+# matplotlib.use('Qt5Agg')
 
 import utils
 import tqdm
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 import numpy as np
 from numba.core.errors import NumbaPerformanceWarning
@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 
 np.random.seed(666)
 
-plt.close('all')
+# plt.close('all')
 
 # K = 40  # Number of single-antenna users
 # M = 64  # Number of receive antennas
@@ -29,20 +29,20 @@ eps_a = 0.1
 
 NUM_MONTE_SIM = 2
 NUM_NOISE_REALIZATIONS = 1000
-NUM_LAMBDA = 5
+NUM_LAMBDA = 3
 NUM_SNR = 5
 NUM_T = 2  # number of diff preambles per run 10->40
 
-NUM_V = 500
+NUM_V = 200
 
 lambdas = np.linspace(0.1, 0.95, num=NUM_LAMBDA)
 preamble_lengths = np.linspace(10, 40, num=NUM_T).astype(int)
 
 snrs_dB = np.linspace(-20, 20, num=NUM_SNR)
 snrs = 10 ** (np.asarray(snrs_dB) / 10)
-antennas = [32, 64, 128, 400]
+antennas = [32, 64, 128]
 
-users = [1000]  # [60, 100, 120, 200, 500]  # Number of single-antenna users
+users = [100] #[60, 100, 120, 200, 500]  # Number of single-antenna users
 
 params = {
     "lambdas": lambdas,
@@ -509,20 +509,20 @@ np.savez_compressed(os.path.join(os.path.dirname(os.path.realpath(__file__)), "d
                     pa_partial_csi=pa_partial_csi, md_partial_csi=md_partial_csi,
                     pa_no_csi=pa_no_csi, md_no_csi=md_no_csi, params=params, SHAPE_PROB=SHAPE_PROB)
 
-mean_axis = tuple(range(pa_prior_csi.ndim - 1))
-fig = plt.figure()
-plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
-plt.plot(pa_partial_csi_ZF.mean(axis=mean_axis), md_partial_csi_ZF.mean(axis=mean_axis), label="Partial CSI (ZF)",
-         marker="x")
-plt.plot(pa_partial_csi.mean(axis=mean_axis), md_partial_csi.mean(axis=mean_axis), label="Partial CSI (algo)",
-         marker="x")
-plt.plot(pa_no_csi.mean(axis=mean_axis), md_no_csi.mean(axis=mean_axis), label="No CSI (algo)", marker="x")
-plt.xscale("log")
-plt.yscale("log")
-plt.xlabel("FA")
-plt.ylabel("MD")
-plt.legend()
-plt.tight_layout()
-plt.show()
+# mean_axis = tuple(range(pa_prior_csi.ndim - 1))
+# fig = plt.figure()
+# plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
+# plt.plot(pa_partial_csi_ZF.mean(axis=mean_axis), md_partial_csi_ZF.mean(axis=mean_axis), label="Partial CSI (ZF)",
+#          marker="x")
+# plt.plot(pa_partial_csi.mean(axis=mean_axis), md_partial_csi.mean(axis=mean_axis), label="Partial CSI (algo)",
+#          marker="x")
+# plt.plot(pa_no_csi.mean(axis=mean_axis), md_no_csi.mean(axis=mean_axis), label="No CSI (algo)", marker="x")
+# plt.xscale("log")
+# plt.yscale("log")
+# plt.xlabel("FA")
+# plt.ylabel("MD")
+# plt.legend()
+# plt.tight_layout()
+# plt.show()
 
 pbar.close()

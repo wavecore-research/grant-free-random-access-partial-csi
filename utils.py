@@ -66,6 +66,7 @@ def ZF(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray, y: np.ndarray):
         Gamma[0 + index_m * T:T + index_m * T, :] = s @ np.diag(g[:, index_m])
     return np.linalg.inv(Gamma.conj().T @ Gamma) @ Gamma.conj().T @ y_tilde
 
+
 #
 # def beta(d, model="oulu", sigma=0):
 #     d = d / 1000
@@ -257,9 +258,10 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
             not_converged = False
     return gamma_hat.copy(), global_C_inverse.copy(), MSEs
 
+
 # @numba.jit(nopython=True, fastmath=True)
 def algorithm_no_csi(gamma_hat: np.ndarray, s: np.ndarray, M: int, y: np.ndarray,
-              sigma2: float, T: int, K: int, real_gamma: np.ndarray, iter_max: int = 1000):
+                     sigma2: float, T: int, K: int, real_gamma: np.ndarray, iter_max: int = 1000):
     lambda_k = np.ones((K, 1))
 
     iter_number = 0
@@ -306,12 +308,13 @@ def algorithm_no_csi(gamma_hat: np.ndarray, s: np.ndarray, M: int, y: np.ndarray
 
         _alpha = alpha(s, C_minus_k_prime_inverse, g, y_m_k_prime, lambda_k, k_prime)
         _delta = delta(s, C_minus_k_prime_inverse, lambda_k, k_prime)
-        #_beta = beta(s, C_minus_k_prime_inverse, g, y_m_k_prime, k_prime)
+        # _beta = beta(s, C_minus_k_prime_inverse, g, y_m_k_prime, k_prime)
 
         # Amplitude optimization
-        r_k_prime_hat = np.sqrt((_alpha - M*_delta)/(M*_delta**2))
+        r_k_prime_hat = np.sqrt((_alpha - M * _delta) / (M * _delta ** 2))
 
-        if np.imag(r_k_prime_hat) > 1e-5: # if imaginary apart is greater than a tolerance, we expect it to be imagniary, not real
+        if np.imag(
+                r_k_prime_hat) > 1e-5:  # if imaginary apart is greater than a tolerance, we expect it to be imagniary, not real
             r_k_prime_hat = 0
 
         # Update gamma_hat
@@ -336,6 +339,7 @@ def algorithm_no_csi(gamma_hat: np.ndarray, s: np.ndarray, M: int, y: np.ndarray
         if iter_number > iter_max - 1:
             not_converged = False
     return gamma_hat.copy(), global_C_inverse.copy(), MSEs
+
 
 @numba.jit(nopython=True, fastmath=True)
 def MSE(mat: np.ndarray, est: np.ndarray):

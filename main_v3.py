@@ -27,22 +27,22 @@ p_TX = 1
 # beta_k = np.ones((K, 1))
 eps_a = 0.1
 
-NUM_MONTE_SIM = 2
-NUM_NOISE_REALIZATIONS = 1000
-NUM_LAMBDA = 3
-NUM_SNR = 5
-NUM_T = 2  # number of diff preambles per run 10->40
+NUM_MONTE_SIM = 1
+NUM_NOISE_REALIZATIONS = 100
+NUM_LAMBDA = 1
+NUM_SNR = 1
+NUM_T = 1  # number of diff preambles per run 10->40
 
 NUM_V = 200
 
-lambdas = np.linspace(0.1, 0.95, num=NUM_LAMBDA)
+lambdas = np.linspace(0.95, 0.1, num=NUM_LAMBDA)
 preamble_lengths = np.linspace(10, 40, num=NUM_T).astype(int)
 
 snrs_dB = np.linspace(-20, 20, num=NUM_SNR)
 snrs = 10 ** (np.asarray(snrs_dB) / 10)
-antennas = [32, 64, 128]
+antennas = [128]  # [32, 64, 128]
 
-users = [100] #[60, 100, 120, 200, 500]  # Number of single-antenna users
+users = [100]  # [60, 100, 120, 200, 500]  # Number of single-antenna users
 
 params = {
     "lambdas": lambdas,

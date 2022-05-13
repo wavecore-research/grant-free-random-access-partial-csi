@@ -155,7 +155,7 @@ with np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data.npz
         'dashed',  # Same as '--'
         'dashdot']
     fig,ax = plt.subplots()
-    i_lambdas = [2,9]
+    i_lambdas = range(len(lambdas))
     for iil, il in enumerate(i_lambdas):
         ax.plot(pa_prior_csi[il, -1, 0, 0, -1, :], md_prior_csi[il, -1, 0, 0, -1, :], label=lambdas[il], color=f"C{iil}", ls=linestyles[0])
         ax.plot(pa_partial_csi_ZF[-1, -1, 0, 0, -1, :], md_partial_csi_ZF[il, -1, 0, 0, -1, :], color=f"C{iil}", ls=linestyles[1])

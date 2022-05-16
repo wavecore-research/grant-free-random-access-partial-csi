@@ -3,6 +3,7 @@ import numba
 from numba import prange
 
 
+
 def iid(dim, var=1.0) -> np.ndarray:
     """
     return iid CN(0,var) with dimensions dim
@@ -130,19 +131,19 @@ def H(arr: np.ndarray):
     return np.conj(arr.T)
 
 
-#@numba.jit(fastmath=True, nopython=True)
+@numba.jit(fastmath=True, nopython=True)
 def alpha(s, C_inv, g, y_m_k_prime, lambda_k, k_prime):
     temp1 = s[:, k_prime].T.conj() @ C_inv @ s[:, k_prime]
     temp2 = y_m_k_prime.T.conj() @ C_inv @ s[:, k_prime]
     return (lambda_k[k_prime] ** 2 * np.sum(np.abs(temp2) ** 2) - temp1 * np.sum(np.abs(g[k_prime, :]) ** 2)).item()
 
 
-#@numba.jit(fastmath=True, nopython=True)
+@numba.jit(fastmath=True, nopython=True)
 def beta(s, C_inv, g, y_m_k_prime, k_prime):
     return float(2 * np.abs(g[k_prime, :] @ y_m_k_prime.T.conj() @ C_inv @ s[:, k_prime]))
 
 
-#@numba.jit(fastmath=True, nopython=True)
+@numba.jit(fastmath=True, nopython=True)
 def delta(s, C_inv, lambda_k, k_prime):
     return (s[:, k_prime].T.conj() @ C_inv @ s[:, k_prime] * lambda_k[k_prime] ** 2).item()
 
@@ -176,7 +177,7 @@ def is_realpositive(val, tol=1e-5):
     return np.imag(val) < tol and np.real(val) >= 0
 
 
-#@numba.jit(nopython=True, fastmath=True)
+@numba.jit(nopython=True, fastmath=True)
 def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int, y: np.ndarray, g: np.ndarray,
               sigma2: float, T: int, K: int, real_gamma: np.ndarray, iter_max: int = 1000):
     iter_number = 0
@@ -265,7 +266,7 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
     return gamma_hat.copy(), global_C_inverse.copy(), None  # MSEs
 
 
-#@numba.jit(nopython=True, fastmath=True)
+@numba.jit(nopython=True, fastmath=True)
 def algorithm_no_csi(gamma_hat: np.ndarray, s: np.ndarray, M: int, y: np.ndarray,
                      sigma2: float, T: int, K: int, real_gamma: np.ndarray, iter_max: int = 1000):
     lambda_k = np.ones((K, 1))

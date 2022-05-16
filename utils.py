@@ -59,12 +59,17 @@ def inv(mat):
     return np.linalg.inv(mat)
 
 
-@numba.jit(fastmath=True, nopython=True, parallel=True)
+#@numba.jit(fastmath=True, nopython=True, parallel=True)
 def Gamma(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray):
+    return np.vstack([(s @ np.diag(g[:, index_m])) for index_m in range(M)])
+
+
+# old gamma function, above is faster
+@numba.jit(fastmath=True, nopython=True, parallel=True)
+def Gamma_v1(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray):
     _Gamma = np.empty((int(M * T), K), dtype=np.complex_)
     for index_m in prange(M):
         _Gamma[index_m * T:T + index_m * T, :] = s @ np.diag(g[:, index_m])
-
     return _Gamma
 
 
@@ -78,13 +83,13 @@ def Gamma(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray):
 #     return np.diag((1 / np.diag(Gamma_diag) + (sigma2 / (p_tx * eps_a)))) @ _Gamma.conj().T @ y_tilde
 
 
-@numba.jit(fastmath=True, nopython=True, parallel=True)
+#@numba.jit(fastmath=True, nopython=True, parallel=True)
 def ZF(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray, y: np.ndarray):
     MT = int(M * T)
     y_tilde = y.T.copy().reshape(MT, 1)
     _Gamma = Gamma(M, T, K, s, g)
 
-    return np.linalg.inv(_Gamma.conj().T @ _Gamma) @ _Gamma.conj().T @ y_tilde
+    return inv(_Gamma.conj().T @ _Gamma) @ _Gamma.conj().T @ y_tilde
 
 
 #
@@ -131,19 +136,19 @@ def H(arr: np.ndarray):
     return np.conj(arr.T)
 
 
-@numba.jit(fastmath=True, nopython=True)
+@numba.jit(fastmath=True, nopython=True, cache=True)
 def alpha(s, C_inv, g, y_m_k_prime, lambda_k, k_prime):
     temp1 = s[:, k_prime].T.conj() @ C_inv @ s[:, k_prime]
     temp2 = y_m_k_prime.T.conj() @ C_inv @ s[:, k_prime]
     return (lambda_k[k_prime] ** 2 * np.sum(np.abs(temp2) ** 2) - temp1 * np.sum(np.abs(g[k_prime, :]) ** 2)).item()
 
 
-@numba.jit(fastmath=True, nopython=True)
+@numba.jit(fastmath=True, nopython=True, cache=True)
 def beta(s, C_inv, g, y_m_k_prime, k_prime):
     return float(2 * np.abs(g[k_prime, :] @ y_m_k_prime.T.conj() @ C_inv @ s[:, k_prime]))
 
 
-@numba.jit(fastmath=True, nopython=True)
+@numba.jit(fastmath=True, nopython=True, cache=True)
 def delta(s, C_inv, lambda_k, k_prime):
     return (s[:, k_prime].T.conj() @ C_inv @ s[:, k_prime] * lambda_k[k_prime] ** 2).item()
 
@@ -172,12 +177,12 @@ def delta(s, C_inv, lambda_k, k_prime):
 #     return np.real(r_out)
 
 
-@numba.jit(nopython=True, fastmath=True)
+@numba.jit(nopython=True, fastmath=True, cache=True)
 def is_realpositive(val, tol=1e-5):
     return np.imag(val) < tol and np.real(val) >= 0
 
 
-@numba.jit(nopython=True, fastmath=True)
+@numba.jit(nopython=True, fastmath=True, cache=True)
 def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int, y: np.ndarray, g: np.ndarray,
               sigma2: float, T: int, K: int, real_gamma: np.ndarray, iter_max: int = 1000):
     iter_number = 0
@@ -266,7 +271,7 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
     return gamma_hat.copy(), global_C_inverse.copy(), None  # MSEs
 
 
-@numba.jit(nopython=True, fastmath=True)
+@numba.jit(nopython=True, fastmath=True, cache=True)
 def algorithm_no_csi(gamma_hat: np.ndarray, s: np.ndarray, M: int, y: np.ndarray,
                      sigma2: float, T: int, K: int, real_gamma: np.ndarray, iter_max: int = 1000):
     lambda_k = np.ones((K, 1))
@@ -347,7 +352,7 @@ def algorithm_no_csi(gamma_hat: np.ndarray, s: np.ndarray, M: int, y: np.ndarray
 #     return 10 * np.log10(MSE(mat, est))
 
 
-@numba.jit(nopython=True, fastmath=True)
+@numba.jit(nopython=True, fastmath=True, cache=True)
 def SINR(arr, est):
     I_err = np.abs(np.imag(arr) - np.imag(est))
     Q_err = np.abs(np.real(arr) - np.real(est))
@@ -358,6 +363,6 @@ def SINR_dB(arr, est):
     return 10 * np.log10(SINR(arr, est))
 
 
-@numba.jit(nopython=True, fastmath=True)
+@numba.jit(nopython=True, fastmath=True, cache=True)
 def sum_rate(arr, est):
     return np.sum(np.log2(np.ones(arr.shape[0]) + SINR(arr, est)))

@@ -22,15 +22,15 @@ p_TX = 1
 
 eps_a = 0.1
 
-NUM_MONTE_SIM = 1
-NUM_NOISE_REALIZATIONS = 1000
-NUM_LAMBDA = 1
-NUM_SNR = 1
+NUM_MONTE_SIM = 10
+NUM_NOISE_REALIZATIONS = 10000
+NUM_LAMBDA = 10
+NUM_SNR = 2
 NUM_T = 1  # number of diff preambles per run 10->40
 
 NUM_V = 200
 
-lambdas = np.linspace(0.95, 0.1, num=NUM_LAMBDA)
+lambdas = np.linspace(0.99, 0.1, num=NUM_LAMBDA)
 preamble_lengths = np.linspace(10, 40, num=NUM_T).astype(int)
 
 snrs_dB = np.linspace(-20, 20, num=NUM_SNR)
@@ -122,14 +122,14 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                                 sigma2)
                             y = s @ np.diag(gamma[:, 0]) @ h + w
 
-                            gamma_hat_prior_CSI = utils.ZF(M, T, K, s, h, y)
-                            gamma_hat_partial_CSI_ZF = utils.ZF(M, T, K, s, g, y)
+                            # gamma_hat_prior_CSI = utils.ZF(M, T, K, s, h, y)
+                            # gamma_hat_partial_CSI_ZF = utils.ZF(M, T, K, s, g, y)
 
                             #gamma_hat_partial_CSI_MF = utils.MF(M, T, K, s, g, y, eps_a, p_TX, sigma2)
 
                             ## Estimator based on partial CSI and iterative ML
 
-                            gamma_init = gamma_hat_partial_CSI_ZF.copy()  # np.zeros_like(gamma)  # or gamma_hat_partial_CSI_ZF.copy()
+                            gamma_init = np.zeros_like(gamma)  # np.zeros_like(gamma)  # or gamma_hat_partial_CSI_ZF.copy()
                             # Initialization thanks to prior CSI
                             gamma_hat_partial_CSI, C_inverse_partial_CSI, MSEs_partial = utils.algorithm(
                                 gamma_init,
@@ -159,11 +159,11 @@ for n_sim_monto in range(NUM_MONTE_SIM):
 
                                 the_slice = np.index_exp[i_lmbda, i_snr, i_T, i_M, i_K, iv]
 
-                                act = np.zeros_like(a)
-                                act[np.abs(gamma_hat_prior_CSI) >= v_th] = 1
-
-                                pa_prior_csi[the_slice] += utils.prob_false(a, act)
-                                md_prior_csi[the_slice] += utils.prob_miss(a, act)
+                                # act = np.zeros_like(a)
+                                # act[np.abs(gamma_hat_prior_CSI) >= v_th] = 1
+                                #
+                                # pa_prior_csi[the_slice] += utils.prob_false(a, act)
+                                # md_prior_csi[the_slice] += utils.prob_miss(a, act)
 
                                 act = np.zeros_like(a)
                                 act[np.abs(gamma_hat_no_CSI) >= v_th] = 1
@@ -171,11 +171,11 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                                 pa_no_csi[the_slice] += utils.prob_false(a, act)
                                 md_no_csi[the_slice] += utils.prob_miss(a, act)
 
-                                act = np.zeros_like(a)
-                                act[np.abs(gamma_hat_partial_CSI_ZF) >= v_th] = 1
-
-                                pa_partial_csi_ZF[the_slice] += utils.prob_false(a, act)
-                                md_partial_csi_ZF[the_slice] += utils.prob_miss(a, act)
+                                # act = np.zeros_like(a)
+                                # act[np.abs(gamma_hat_partial_CSI_ZF) >= v_th] = 1
+                                #
+                                # pa_partial_csi_ZF[the_slice] += utils.prob_false(a, act)
+                                # md_partial_csi_ZF[the_slice] += utils.prob_miss(a, act)
 
                                 act = np.zeros_like(a)
                                 act[np.abs(gamma_hat_partial_CSI) >= v_th] = 1

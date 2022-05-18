@@ -1,7 +1,7 @@
 import numpy as np
 import numba
 from numba import prange
-
+import cupy as cp
 
 
 def iid(dim, var=1.0) -> np.ndarray:
@@ -54,23 +54,22 @@ def prob_false(arr, arr_est) -> float:
     return p_false
 
 
-@numba.jit(fastmath=True, nopython=True)
-def inv(mat):
-    return np.linalg.inv(mat)
+# @numba.jit(fastmath=True, nopython=True)
+# def inv(mat):
+#     return np.linalg.inv(mat)
 
 
-#@numba.jit(fastmath=True, nopython=True, parallel=True)
-def Gamma(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray):
-    return np.vstack([(s @ np.diag(g[:, index_m])) for index_m in range(M)])
+def Gamma_cp(M: int, s: cp.ndarray, g: cp.ndarray):
+    return cp.vstack([(s @ cp.diag(g[:, index_m])) for index_m in range(M)])
 
 
 # old gamma function, above is faster
-@numba.jit(fastmath=True, nopython=True, parallel=True)
-def Gamma_v1(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray):
-    _Gamma = np.empty((int(M * T), K), dtype=np.complex_)
-    for index_m in prange(M):
-        _Gamma[index_m * T:T + index_m * T, :] = s @ np.diag(g[:, index_m])
-    return _Gamma
+# @numba.jit(fastmath=True, nopython=True, parallel=True)
+# def Gamma(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray):
+#     _Gamma = np.empty((int(M * T), K), dtype=np.complex_)
+#     for index_m in prange(M):
+#         _Gamma[index_m * T:T + index_m * T, :] = s @ np.diag(g[:, index_m])
+#     return _Gamma
 
 
 # @numba.jit(fastmath=True, nopython=True, parallel=True)
@@ -83,13 +82,26 @@ def Gamma_v1(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray):
 #     return np.diag((1 / np.diag(Gamma_diag) + (sigma2 / (p_tx * eps_a)))) @ _Gamma.conj().T @ y_tilde
 
 
-#@numba.jit(fastmath=True, nopython=True, parallel=True)
+
 def ZF(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray, y: np.ndarray):
     MT = int(M * T)
     y_tilde = y.T.copy().reshape(MT, 1)
-    _Gamma = Gamma(M, T, K, s, g)
 
-    return inv(_Gamma.conj().T @ _Gamma) @ _Gamma.conj().T @ y_tilde
+    _Gamma = Gamma_cp(M, cp.asarray(s), cp.asarray(g))
+
+    _Gamma_H = cp.linalg.inv(cp.matmul(_Gamma.conj().T, _Gamma))
+    _Gamma_pinv = cp.matmul(_Gamma_H, _Gamma.conj().T)
+
+    return cp.matmul(_Gamma_pinv, cp.asarray(y_tilde)).get()
+
+
+# @numba.jit(fastmath=True, nopython=True, parallel=True)
+# def ZF(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray, y: np.ndarray):
+#     MT = int(M * T)
+#     y_tilde = y.T.copy().reshape(MT, 1)
+#     _Gamma = Gamma(M, T, K, s, g)
+#
+#     return inv(_Gamma.conj().T @ _Gamma) @ _Gamma.conj().T @ y_tilde
 
 
 #
@@ -328,7 +340,6 @@ def algorithm_no_csi(gamma_hat: np.ndarray, s: np.ndarray, M: int, y: np.ndarray
         up = C_minus_k_prime_inverse @ s_s_H @ C_minus_k_prime_inverse * r_lam
         low = 1 + s_H[k_prime, :] @ C_minus_k_prime_inverse @ s[:, k_prime] * r_lam
         global_C_inverse = np.ascontiguousarray(C_minus_k_prime_inverse - up / low)
-
 
         # next iteration
         k_prime = np.mod(k_prime + 1, K)

@@ -82,7 +82,6 @@ def Gamma_cp(M: int, s: cp.ndarray, g: cp.ndarray):
 #     return np.diag((1 / np.diag(Gamma_diag) + (sigma2 / (p_tx * eps_a)))) @ _Gamma.conj().T @ y_tilde
 
 
-
 def ZF(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray, y: np.ndarray):
     MT = int(M * T)
     y_tilde = y.T.copy().reshape(MT, 1)
@@ -377,3 +376,49 @@ def SINR_dB(arr, est):
 @numba.jit(nopython=True, fastmath=True, cache=True)
 def sum_rate(arr, est):
     return np.sum(np.log2(np.ones(arr.shape[0]) + SINR(arr, est)))
+
+
+def data_from_file(f):
+    data = np.load(f, allow_pickle=True)
+    params = data["params"].item()
+    return dict(data), params
+
+
+def is_same_params(p1: dict, p2: dict):
+    # params = {
+    #     "lambdas": lambdas,
+    #     "preamble_lengths":preamble_lengths,
+    #     "snrs_dB":snrs_dB,
+    #     "antennas":antennas,
+    #     "users":users
+    # }
+
+    is_same = True
+    for key in p1.keys():
+        if len(p1[key]) != len(p2[key]):
+            is_same = False
+            break
+
+        if not np.allclose(np.asarray(p1[key]), np.asarray(p2[key])):
+            is_same = False
+            break
+    return is_same
+
+
+def merge(d1, d2):
+    if not (np.asarray(d1["SHAPE_PROB"]) == np.asarray(d2["SHAPE_PROB"])).all():
+        return None
+
+    d1["pa_prior_csi"] = (d1["pa_prior_csi"] + d2["pa_prior_csi"]) / 2
+
+    d1["md_prior_csi"] = (d1["md_prior_csi"] + d2["md_prior_csi"]) / 2
+    d1["pa_partial_csi_ZF"] = (d1["pa_partial_csi_ZF"] + d2["pa_partial_csi_ZF"]) / 2
+    d1["md_partial_csi_ZF"] = (d1["md_partial_csi_ZF"] + d2["md_partial_csi_ZF"]) / 2
+    d1["pa_partial_csi"] = (d1["pa_partial_csi"] + d2["pa_partial_csi"]) / 2
+    d1["md_partial_csi"] = (d1["md_partial_csi"] + d2["md_partial_csi"]) / 2
+    d1["pa_prior_csi"] = (d1["pa_prior_csi"] + d2["pa_prior_csi"]) / 2
+
+    d1["pa_no_csi"] = (d1["pa_no_csi"] + d2["pa_no_csi"]) / 2
+    d1["md_no_csi"] = (d1["md_no_csi"] + d2["md_no_csi"]) / 2
+
+    return d1

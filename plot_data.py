@@ -22,7 +22,9 @@ def same_prob_args(x1, x2):
     return np.take_along_axis(x1, argmin, axis=-1), np.take_along_axis(x2, argmin, axis=-1), argmin
 
 
-with np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data_v1.npz"), allow_pickle=True) as data:
+with np.load(
+        os.path.join(os.path.dirname(os.path.realpath(__file__)), "merged-results", "data-vlWVSfTw-urvClsIRK9XBA.npz"),
+        allow_pickle=True) as data:
     pa_prior_csi = data["pa_prior_csi"]
     md_prior_csi = data["md_prior_csi"]
     pa_partial_csi_ZF = data["pa_partial_csi_ZF"]
@@ -33,6 +35,10 @@ with np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data_v1.
     md_no_csi = data["md_no_csi"]
     params = data["params"].item()
     SHAPE_PROB = data["SHAPE_PROB"]
+    lambdas = params["lambdas"]
+    Ts = params["preamble_lengths"]
+    Ms = params["antennas"]
+    Ks = params["users"]
 
     # SHAPE = (NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K, NUM_V)
 
@@ -49,12 +55,24 @@ with np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data_v1.
 
     mean_axis = tuple(range(pa_prior_csi.ndim - 1))
 
+    LAMBDA_IDX = 0
+    SNR_IDX = 1
+    T_IDX = 2
+    M_IDX = 3
+    K_IDX = 4
+
     LOWEST_SNR_IDX = np.argmin(snrs_db)
-    HIGHEST_SNR_IDX= np.argmin(snrs_db)
+    HIGHEST_SNR_IDX = np.argmin(snrs_db)
+
     LOWEST_M_IDX = np.argmin(params["antennas"])
+    HIGHEST_M_IDX = np.argmin(params["antennas"])
+
     HIGHEST_K_IDX = np.argmax(params["users"])
+
     LOWEST_T_IDX = np.argmin(params["preamble_lengths"])
+
     HIGHEST_LAMBDA_IDX = np.argmax(params["lambdas"])
+    LOWEST_LAMBDA_IDX = np.argmin(params["lambdas"])
 
     fig = plt.figure()
     selection = np.index_exp[HIGHEST_LAMBDA_IDX, LOWEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX, :]
@@ -77,15 +95,22 @@ with np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data_v1.
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)
 
-    selection = np.index_exp[HIGHEST_LAMBDA_IDX, :, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX]
+    selection = np.index_exp[HIGHEST_LAMBDA_IDX, :, LOWEST_T_IDX, HIGHEST_M_IDX, HIGHEST_K_IDX]
 
     plt.plot(snrs_db, x1[selection], label="Full CSI (ZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi_ZF, md_partial_csi_ZF)
-    plt.plot(snrs_db, x1[selection], label="Partial CSI (ZF)")
+    plt.plot(snrs_db, x1[selection], label=f"Partial CSI (ZF) {lambdas[HIGHEST_LAMBDA_IDX]:.2f}")
 
     x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
-    plt.plot(snrs_db, x1[selection], label="Partial CSI (algo)")
+    plt.plot(snrs_db, x1[selection], label=f"Partial CSI (algo) {lambdas[HIGHEST_LAMBDA_IDX]:.2f}")
+
+    selection = np.index_exp[LOWEST_LAMBDA_IDX, :, LOWEST_T_IDX, HIGHEST_M_IDX, HIGHEST_K_IDX]
+    x1, x2, args = same_prob_args(pa_partial_csi_ZF, md_partial_csi_ZF)
+    plt.plot(snrs_db, x1[selection], label=f"Partial CSI (ZF) {lambdas[LOWEST_LAMBDA_IDX]:.2f}")
+
+    x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
+    plt.plot(snrs_db, x1[selection], label=f"Partial CSI (algo) {lambdas[LOWEST_LAMBDA_IDX]:.2f}")
 
     # x1, x2, args = same_prob_args(pa_no_csi, md_no_csi)
     # plt.scatter(snrs_db, x1[0, :, 0, 0, 0], label="No CSI (algo) x1")
@@ -94,11 +119,12 @@ with np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data_v1.
     plt.yscale("log")
     plt.xlabel("SNR")
     plt.ylabel("Prob")
+    plt.title(f"Params $T$={Ts[selection[T_IDX]]}, $M$={Ms[selection[M_IDX]]}, $K$={Ks[selection[K_IDX]]}")
     plt.legend()
     plt.tight_layout()
     plt.show()
 
-    Ms = params["antennas"]
+
     plt.figure()
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)
@@ -129,7 +155,6 @@ with np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data_v1.
 
     # (NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K, NUM_V)
 
-    lambdas = params["lambdas"]
     plt.figure()
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)

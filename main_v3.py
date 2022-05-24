@@ -16,7 +16,7 @@ from numba.core.errors import NumbaPerformanceWarning
 
 warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 
-np.random.seed(666)
+np.random.seed(1)
 
 # plt.close('all')
 
@@ -28,21 +28,21 @@ p_TX = 1
 eps_a = 0.1
 
 NUM_MONTE_SIM = 2
-NUM_NOISE_REALIZATIONS = 10
-NUM_LAMBDA = 3
-NUM_SNR = 1
+NUM_NOISE_REALIZATIONS = 4000
+NUM_LAMBDA = 10
+NUM_SNR = 2
 NUM_T = 1  # number of diff preambles per run 10->40
 
 NUM_V = 200
 
-lambdas = np.linspace(0.95, 0.1, num=NUM_LAMBDA)
+lambdas = np.linspace(0.9, 0.3, num=NUM_LAMBDA)
 preamble_lengths = np.linspace(10, 40, num=NUM_T).astype(int)
 
 snrs_dB = np.linspace(-20, 20, num=NUM_SNR)
 snrs = 10 ** (np.asarray(snrs_dB) / 10)
 antennas = [128]
 
-users = [1000]  # Number of single-antenna users
+users = [100]  # Number of single-antenna users
 
 params = {
     "lambdas": lambdas,
@@ -504,7 +504,10 @@ md_partial_csi /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
 pa_no_csi /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
 md_no_csi /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
 
-np.savez_compressed(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data"), pa_prior_csi=pa_prior_csi,
+import secrets
+
+np.savez_compressed(os.path.join(os.path.dirname(os.path.realpath(__file__)), "results", f"data-{secrets.token_urlsafe(16)}"),
+                    pa_prior_csi=pa_prior_csi,
                     md_prior_csi=md_prior_csi, pa_partial_csi_ZF=pa_partial_csi_ZF, md_partial_csi_ZF=md_partial_csi_ZF,
                     pa_partial_csi=pa_partial_csi, md_partial_csi=md_partial_csi,
                     pa_no_csi=pa_no_csi, md_no_csi=md_no_csi, params=params, SHAPE_PROB=SHAPE_PROB)

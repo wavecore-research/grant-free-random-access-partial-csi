@@ -2,6 +2,7 @@ name: grant-free-random-access-partial-csi
 channels:
   - defaults
 dependencies:
+  - numba
   - blas=1.0=mkl
   - brotli=1.0.9=ha925a31_2
   - ca-certificates=2022.4.26=haa95532_0
@@ -9,7 +10,7 @@ dependencies:
   - colorama=0.4.4=pyhd3eb1b0_0
   - cudatoolkit=10.1.243=h74a9793_0
   - cudnn=7.6.5=cuda10.1_0
-  - cupy=8.3.0=py39hd4ca531_0
+  - cupy
   - cycler=0.11.0=pyhd3eb1b0_0
   - fastrlock=0.6=py39hd77b12b_0
   - fonttools=4.25.0=pyhd3eb1b0_0

@@ -16,7 +16,6 @@ from numba.core.errors import NumbaPerformanceWarning
 
 warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 
-np.random.seed(1)
 
 # plt.close('all')
 

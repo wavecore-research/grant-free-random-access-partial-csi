@@ -1,7 +1,7 @@
 import numpy as np
 import numba
 from numba import prange
-
+import cupy as cp
 
 
 def iid(dim, var=1.0) -> np.ndarray:
@@ -54,23 +54,22 @@ def prob_false(arr, arr_est) -> float:
     return p_false
 
 
-@numba.jit(fastmath=True, nopython=True)
-def inv(mat):
-    return np.linalg.inv(mat)
+# @numba.jit(fastmath=True, nopython=True)
+# def inv(mat):
+#     return np.linalg.inv(mat)
 
 
-#@numba.jit(fastmath=True, nopython=True, parallel=True)
-def Gamma(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray):
-    return np.vstack([(s @ np.diag(g[:, index_m])) for index_m in range(M)])
+def Gamma_cp(M: int, s: cp.ndarray, g: cp.ndarray):
+    return cp.vstack([(s @ cp.diag(g[:, index_m])) for index_m in range(M)])
 
 
 # old gamma function, above is faster
-@numba.jit(fastmath=True, nopython=True, parallel=True)
-def Gamma_v1(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray):
-    _Gamma = np.empty((int(M * T), K), dtype=np.complex_)
-    for index_m in prange(M):
-        _Gamma[index_m * T:T + index_m * T, :] = s @ np.diag(g[:, index_m])
-    return _Gamma
+# @numba.jit(fastmath=True, nopython=True, parallel=True)
+# def Gamma(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray):
+#     _Gamma = np.empty((int(M * T), K), dtype=np.complex_)
+#     for index_m in prange(M):
+#         _Gamma[index_m * T:T + index_m * T, :] = s @ np.diag(g[:, index_m])
+#     return _Gamma
 
 
 # @numba.jit(fastmath=True, nopython=True, parallel=True)
@@ -83,13 +82,25 @@ def Gamma_v1(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray):
 #     return np.diag((1 / np.diag(Gamma_diag) + (sigma2 / (p_tx * eps_a)))) @ _Gamma.conj().T @ y_tilde
 
 
-#@numba.jit(fastmath=True, nopython=True, parallel=True)
 def ZF(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray, y: np.ndarray):
     MT = int(M * T)
     y_tilde = y.T.copy().reshape(MT, 1)
-    _Gamma = Gamma(M, T, K, s, g)
 
-    return inv(_Gamma.conj().T @ _Gamma) @ _Gamma.conj().T @ y_tilde
+    _Gamma = Gamma_cp(M, cp.asarray(s), cp.asarray(g))
+
+    _Gamma_H = cp.linalg.inv(cp.matmul(_Gamma.conj().T, _Gamma))
+    _Gamma_pinv = cp.matmul(_Gamma_H, _Gamma.conj().T)
+
+    return cp.matmul(_Gamma_pinv, cp.asarray(y_tilde)).get()
+
+
+# @numba.jit(fastmath=True, nopython=True, parallel=True)
+# def ZF(M: int, T: int, K: int, s: np.ndarray, g: np.ndarray, y: np.ndarray):
+#     MT = int(M * T)
+#     y_tilde = y.T.copy().reshape(MT, 1)
+#     _Gamma = Gamma(M, T, K, s, g)
+#
+#     return inv(_Gamma.conj().T @ _Gamma) @ _Gamma.conj().T @ y_tilde
 
 
 #
@@ -329,7 +340,6 @@ def algorithm_no_csi(gamma_hat: np.ndarray, s: np.ndarray, M: int, y: np.ndarray
         low = 1 + s_H[k_prime, :] @ C_minus_k_prime_inverse @ s[:, k_prime] * r_lam
         global_C_inverse = np.ascontiguousarray(C_minus_k_prime_inverse - up / low)
 
-
         # next iteration
         k_prime = np.mod(k_prime + 1, K)
 
@@ -366,3 +376,49 @@ def SINR_dB(arr, est):
 @numba.jit(nopython=True, fastmath=True, cache=True)
 def sum_rate(arr, est):
     return np.sum(np.log2(np.ones(arr.shape[0]) + SINR(arr, est)))
+
+
+def data_from_file(f):
+    data = np.load(f, allow_pickle=True)
+    params = data["params"].item()
+    return dict(data), params
+
+
+def is_same_params(p1: dict, p2: dict):
+    # params = {
+    #     "lambdas": lambdas,
+    #     "preamble_lengths":preamble_lengths,
+    #     "snrs_dB":snrs_dB,
+    #     "antennas":antennas,
+    #     "users":users
+    # }
+
+    is_same = True
+    for key in p1.keys():
+        if len(p1[key]) != len(p2[key]):
+            is_same = False
+            break
+
+        if not np.allclose(np.asarray(p1[key]), np.asarray(p2[key])):
+            is_same = False
+            break
+    return is_same
+
+
+def merge(d1, d2):
+    if not (np.asarray(d1["SHAPE_PROB"]) == np.asarray(d2["SHAPE_PROB"])).all():
+        return None
+
+    d1["pa_prior_csi"] = (d1["pa_prior_csi"] + d2["pa_prior_csi"]) / 2
+
+    d1["md_prior_csi"] = (d1["md_prior_csi"] + d2["md_prior_csi"]) / 2
+    d1["pa_partial_csi_ZF"] = (d1["pa_partial_csi_ZF"] + d2["pa_partial_csi_ZF"]) / 2
+    d1["md_partial_csi_ZF"] = (d1["md_partial_csi_ZF"] + d2["md_partial_csi_ZF"]) / 2
+    d1["pa_partial_csi"] = (d1["pa_partial_csi"] + d2["pa_partial_csi"]) / 2
+    d1["md_partial_csi"] = (d1["md_partial_csi"] + d2["md_partial_csi"]) / 2
+    d1["pa_prior_csi"] = (d1["pa_prior_csi"] + d2["pa_prior_csi"]) / 2
+
+    d1["pa_no_csi"] = (d1["pa_no_csi"] + d2["pa_no_csi"]) / 2
+    d1["md_no_csi"] = (d1["md_no_csi"] + d2["md_no_csi"]) / 2
+
+    return d1

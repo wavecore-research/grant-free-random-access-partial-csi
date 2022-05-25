@@ -26,13 +26,13 @@ p_TX = 1
 # beta_k = np.ones((K, 1))
 eps_a = 0.1
 
-NUM_MONTE_SIM = 4
-NUM_NOISE_REALIZATIONS = 5000
-NUM_LAMBDA = 2
+NUM_MONTE_SIM = 12
+NUM_NOISE_REALIZATIONS = 1000
+NUM_LAMBDA = 10
 NUM_SNR = 10
-NUM_T = 1  # number of diff preambles per run 10->40
+NUM_T = 2  # number of diff preambles per run 10->40
 
-NUM_V = 200
+NUM_V = 1000
 
 lambdas = np.linspace(0.9, 0.3, num=NUM_LAMBDA)
 preamble_lengths = np.linspace(10, 40, num=NUM_T).astype(int)

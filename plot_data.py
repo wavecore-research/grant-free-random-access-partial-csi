@@ -23,7 +23,7 @@ def same_prob_args(x1, x2):
 
 
 with np.load(
-        os.path.join(os.path.dirname(os.path.realpath(__file__)), "merged-results", "data-vlWVSfTw-urvClsIRK9XBA.npz"),
+        os.path.join(os.path.dirname(os.path.realpath(__file__)), "merged-results", "data-DYVr595uCoL7AFe22hod0g.npz"),
         allow_pickle=True) as data:
     pa_prior_csi = data["pa_prior_csi"]
     md_prior_csi = data["md_prior_csi"]
@@ -62,10 +62,10 @@ with np.load(
     K_IDX = 4
 
     LOWEST_SNR_IDX = np.argmin(snrs_db)
-    HIGHEST_SNR_IDX = np.argmin(snrs_db)
+    HIGHEST_SNR_IDX = np.argmax(snrs_db)
 
     LOWEST_M_IDX = np.argmin(params["antennas"])
-    HIGHEST_M_IDX = np.argmin(params["antennas"])
+    HIGHEST_M_IDX = np.argmax(params["antennas"])
 
     HIGHEST_K_IDX = np.argmax(params["users"])
 
@@ -75,7 +75,7 @@ with np.load(
     LOWEST_LAMBDA_IDX = np.argmin(params["lambdas"])
 
     fig = plt.figure()
-    selection = np.index_exp[HIGHEST_LAMBDA_IDX, LOWEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX, :]
+    selection = np.index_exp[HIGHEST_LAMBDA_IDX, HIGHEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX, :]
 
     plt.plot(pa_prior_csi[selection], md_prior_csi[selection], label="Full CSI (ZF)", marker="x")
     plt.plot(pa_partial_csi_ZF[selection], md_partial_csi_ZF[selection], label="Partial CSI (ZF)",
@@ -183,7 +183,7 @@ with np.load(
     plt.tight_layout()
     plt.show()
 
-    import matplotlib.pyplot as plt;
+    import matplotlib.pyplot as plt
 
     cmap = plt.cm.get_cmap('viridis')
 
@@ -198,7 +198,7 @@ with np.load(
 
     i_lambdas = range(len(lambdas))
     for iil, il in enumerate(i_lambdas):
-        selection = np.index_exp[il, HIGHEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX]
+        selection = np.index_exp[il, LOWEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX]
         ax.plot(pa_prior_csi[selection], md_prior_csi[selection], label=lambdas[il], color=f"C{iil}", ls=linestyles[0])
         ax.plot(pa_partial_csi_ZF[selection], md_partial_csi_ZF[selection], color=f"C{iil}", ls=linestyles[1])
         ax.plot(pa_partial_csi[selection], md_partial_csi[selection], color=f"C{iil}", ls=linestyles[2])

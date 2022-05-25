@@ -26,10 +26,10 @@ p_TX = 1
 # beta_k = np.ones((K, 1))
 eps_a = 0.1
 
-NUM_MONTE_SIM = 2
-NUM_NOISE_REALIZATIONS = 4000
-NUM_LAMBDA = 10
-NUM_SNR = 2
+NUM_MONTE_SIM = 4
+NUM_NOISE_REALIZATIONS = 5000
+NUM_LAMBDA = 2
+NUM_SNR = 10
 NUM_T = 1  # number of diff preambles per run 10->40
 
 NUM_V = 200
@@ -505,7 +505,10 @@ md_no_csi /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
 
 import secrets
 
-np.savez_compressed(os.path.join(os.path.dirname(os.path.realpath(__file__)), "results", f"data-{secrets.token_urlsafe(16)}"),
+results_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "results")
+os.makedirs(results_dir, exist_ok=True)
+
+np.savez_compressed(os.path.join(results_dir, f"data-{secrets.token_urlsafe(16)}"),
                     pa_prior_csi=pa_prior_csi,
                     md_prior_csi=md_prior_csi, pa_partial_csi_ZF=pa_partial_csi_ZF, md_partial_csi_ZF=md_partial_csi_ZF,
                     pa_partial_csi=pa_partial_csi, md_partial_csi=md_partial_csi,

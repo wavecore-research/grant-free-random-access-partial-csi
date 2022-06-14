@@ -346,8 +346,8 @@ def C(_gamma_hat, _lambda_k, _s, _sigma2I):
 
 @numba.jit(nopython=True, fastmath=True, cache=True)
 def inv(A):
-    if not is_full_rank(A):
-        print("Matrix is not full rank, will not be abel to inverse")
+    # if not is_full_rank(A):
+    #     print("Matrix is not full rank, will not be abel to inverse")
     return np.linalg.inv(A)
 
 @numba.jit(nopython=True, fastmath=True, cache=True)
@@ -358,10 +358,6 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
     not_converged = True
 
     gamma_hat = gamma_hat[:, 0].copy()
-    lambda_k = lambda_k.copy()
-    s = s.copy()
-    y = y.copy()
-    g = g.copy()
 
     sigma2I = sigma2 * np.identity(T)
 
@@ -378,7 +374,7 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
     LLs = np.zeros(iter_max, dtype=np.float_)
 
     s_s_H = [np.zeros((K, K), dtype=np.complex128)] * K
-    for k in range(K):
+    for k in prange(K):
         s_s_H[k] = np.outer(s[:, k], s_H[k, :])
 
     while not_converged:
@@ -420,7 +416,7 @@ def algorithm(gamma_hat: np.ndarray, lambda_k: np.ndarray, s: np.ndarray, M: int
         found = False
         for root in roots:
             if is_realpositive(root):
-                if (found):
+                if found:
                     print('\033[31m More than one root found')
                 _r = np.real(root)
                 sol = _r if _r >= sol else sol

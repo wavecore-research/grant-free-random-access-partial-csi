@@ -1,13 +1,13 @@
 import os
 import warnings
 
-# import matplotlib
-#
-# matplotlib.use('Qt5Agg')
+import matplotlib
+
+matplotlib.use('Qt5Agg')
 
 import utils
 import tqdm
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 import numpy as np
 from numba.core.errors import NumbaPerformanceWarning
@@ -16,32 +16,33 @@ from numba.core.errors import NumbaPerformanceWarning
 
 warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 
-
 # plt.close('all')
 
 # K = 40  # Number of single-antenna users
 # M = 64  # Number of receive antennas
-p_TX = 1
+
 
 # beta_k = np.ones((K, 1))
 eps_a = 0.1
 
-NUM_MONTE_SIM = 12
-NUM_NOISE_REALIZATIONS = 1000
-NUM_LAMBDA = 10
-NUM_SNR = 10
-NUM_T = 2  # number of diff preambles per run 10->40
+NUM_MONTE_SIM = 1
+NUM_NOISE_REALIZATIONS = 10
+NUM_LAMBDA = 4
+NUM_SNR = 4
+NUM_T = 1  # number of diff preambles per run 10->40
 
 NUM_V = 1000
 
-lambdas = np.linspace(0.9, 0.3, num=NUM_LAMBDA)
+lambdas = np.linspace(0.3, 0.9, num=NUM_LAMBDA)
 preamble_lengths = np.linspace(10, 40, num=NUM_T).astype(int)
 
 snrs_dB = np.linspace(-20, 20, num=NUM_SNR)
 snrs = 10 ** (np.asarray(snrs_dB) / 10)
-antennas = [128]
+antennas = [32]
 
-users = [100]  # Number of single-antenna users
+p_TX = 1
+
+users = [500]  # Number of single-antenna users
 
 params = {
     "lambdas": lambdas,
@@ -51,28 +52,10 @@ params = {
     "users": users
 }
 
-# Td = 40  # 40 payload symbols
-
 NUM_ANT = len(antennas)
 NUM_K = len(users)
 
-# NUM_SIM = NUM_MONTE_SIM * NUM_LAMBDA * NUM_SNR
-
-# SHAPE_GAMMA = (NUM_MONTE_SIM, NUM_LAMBDA, NUM_SNR, NUM_T, K)
-# SHAPE_MSE = (NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K)
 SHAPE_PROB = (NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K, NUM_V)
-
-# gamma_real = np.zeros(SHAPE_GAMMA, dtype=complex)
-# gamma_prior_csi = np.zeros(SHAPE_GAMMA, dtype=complex)
-# gamma_partial_csi = np.zeros(SHAPE_GAMMA, dtype=complex)
-# gamma_no_csi = np.zeros(SHAPE_GAMMA, dtype=complex)
-# gamma_genie_csi = np.zeros(SHAPE_GAMMA, dtype=complex)
-
-# MSE_prior_csi = np.zeros(SHAPE_MSE, dtype=float)
-# MSE_partial_csi = np.zeros(SHAPE_MSE, dtype=float)
-# MSE_partial_csi_ZF = np.zeros(SHAPE_MSE, dtype=float)
-# MSE_no_csi = np.zeros(SHAPE_MSE, dtype=float)
-# MSE_genie_csi = np.zeros(SHAPE_MSE, dtype=float)
 
 
 pa_prior_csi = np.zeros(SHAPE_PROB, dtype=float)
@@ -84,8 +67,8 @@ md_no_csi = np.zeros(SHAPE_PROB, dtype=float)
 pa_partial_csi = np.zeros(SHAPE_PROB, dtype=float)
 md_partial_csi = np.zeros(SHAPE_PROB, dtype=float)
 
-pa_partial_csi_ZF = np.zeros(SHAPE_PROB, dtype=float)
-md_partial_csi_ZF = np.zeros(SHAPE_PROB, dtype=float)
+pa_partial_csi_RZF = np.zeros(SHAPE_PROB, dtype=float)
+md_partial_csi_RZF = np.zeros(SHAPE_PROB, dtype=float)
 
 pbar = tqdm.tqdm(total=NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS * NUM_LAMBDA * NUM_SNR * NUM_T * NUM_ANT * NUM_K)
 
@@ -115,13 +98,6 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                 a[0] = 1  # ensure_dir at least one user is active
             gamma = np.sqrt(rho) * a * np.exp(1j * phi)
 
-            # x_int = np.random.randint(0, 4, (Td, K))  # 0 to 3
-            # x_degrees = x_int * 360 / 4.0 + 45  # 45, 135, 225, 315 degrees
-            # x_radians = x_degrees * np.pi / 180.0  # sin() and cos() takes in radians
-            # payload = np.cos(x_radians) + 1j * np.sin(x_radians)  # this produces our QPSK complex symbols
-
-            # payload = np.random.normal(0, 1 / np.sqrt(2), (Td, K)) + 1j * np.random.normal(0, 1 / np.sqrt(2), (Td, K))
-
             for i_T, T in enumerate(preamble_lengths):
 
                 ## Preamble generation and user activity
@@ -129,15 +105,8 @@ for n_sim_monto in range(NUM_MONTE_SIM):
 
                 for i_lmbda, lambda_corr in enumerate(lambdas):
                     lambda_k = np.zeros((K, 1)) + lambda_corr
-                    ## Channel generation
-                    # lambda_k= beta_k - E(||g_k||^2/M)
 
                     for i_M, M in enumerate(antennas):
-
-                        ## Channel generation (moved above to average over noise realizations)
-                        # g = np.diag(lambda_compl_k[:, 0]) @ (
-                        #         np.random.normal(0, 1 / np.sqrt(2), (K, M)) + 1j * np.random.normal(0, 1 / np.sqrt(2),
-                        #                                                                             (K, M)))
                         g = g_mk[i_K][i_lmbda][i_M]
 
                         for i_snr, snr in enumerate(snrs):
@@ -157,46 +126,14 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                                 sigma2)
                             y = s @ np.diag(gamma[:, 0]) @ h + w
 
-                            # w_payload = (np.random.normal(0, 1 / np.sqrt(2), (Td, M)) + 1j * np.random.normal(0,
-                            #                                                                                   1 / np.sqrt(
-                            #                                                                                       2),
-                            #                                                                                   (Td,
-                            #                                                                                    M))) * np.sqrt(
-                            #     sigma2)
-                            # y_payload = payload @ np.diag(gamma[:, 0]) @ h + w_payload
-                            # Estimate based on prior csi, assuming all lambdas are zeros, cf. conf. paper
-
-                            # input h or g? in prior CSI
-                            gamma_hat_prior_CSI = utils.ZF(M, T, K, s, h, y)
-                            gamma_hat_partial_CSI_ZF = utils.ZF(M, T, K, s, g, y)
-
-                            # gamma_prior_csi[n_sim, i_lmbda, i_snr, i_T, :] = gamma_hat_prior_CSI.copy()[:, 0]
-
-                            # C_inv_prior_CSI = utils.inv(
-                            #     s @ np.diag(
-                            #         np.abs(gamma_hat_prior_CSI[:, 0]) ** 2 * lambda_k[:,
-                            #                                                  0] ** 2) @ s.T.conj() + sigma2 * np.identity(
-                            #         T))
-                            #
-                            # C_inv_partial_CSI_ZF = utils.inv(
-                            #     s @ np.diag(
-                            #         np.abs(gamma_hat_prior_CSI[:, 0]) ** 2 * lambda_k[:,
-                            #                                                  0] ** 2) @ s.T.conj() + sigma2 * np.identity(
-                            #         T))
-
-                            # MSE_prior_csi[i_lmbda, i_snr, i_T, i_M, i_K] = utils.MSE(gamma,
-                            #                                                          gamma_hat_prior_CSI[:,
-                            #                                                          0])  # utils.ML_value(gamma_prior_csi[n_sim, :], C_inv_prior_CSI, y, s, g, M, T)
-                            # MSE_partial_csi_ZF[i_lmbda, i_snr, i_T, i_M, i_K] = utils.MSE(gamma,
-                            #                                                               gamma_hat_partial_CSI_ZF[
-                            #                                                               :,
-                            #                                                               0])  # utils.ML_value(gamma_prior_csi[n_sim, :], C_inv_prior_CSI, y, s, g, M, T)
+                            gamma_hat_prior_CSI_RZF = utils.RZF(M, T, K, s, h, y, sigma2, eps_a, p_TX)
+                            gamma_hat_partial_CSI_RZF = utils.RZF(M, T, K, s, g, y, sigma2, eps_a, p_TX)
 
                             ## Estimator based on partial CSI and iterative ML
 
-                            gamma_init = np.zeros_like(gamma)  # or gamma_hat_partial_CSI_ZF.copy()
+                            gamma_init = gamma.copy()
                             # Initialization thanks to prior CSI
-                            gamma_hat_partial_CSI, C_inverse_partial_CSI, MSEs_partial = utils.algorithm(
+                            gamma_hat_partial_CSI, C_inverse_partial_CSI, (MSEs_partial, LLs_partial) = utils.algorithm(
                                 gamma_init,
                                 lambda_k, s,
                                 M,
@@ -204,6 +141,21 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                                 sigma2,
                                 T, K,
                                 iter_max=ITER_MAX, real_gamma=gamma)
+
+                            # import matplotlib.pyplot as plt
+                            # fig, ax_ll = plt.subplots()
+                            # ax_mse = ax_ll.twinx()
+                            # ax3 = ax_mse.twiny()
+                            # ax_ll.get_shared_x_axes().join(ax_mse, ax3)
+                            #
+                            # ax_ll.set_ylabel("LLs", color="blue")
+                            # ax_mse.set_ylabel("MSEs", color="red")
+                            #
+                            # ax_ll.plot(LLs_partial, label="LLs", color="blue")
+                            # ax_mse.plot(MSEs_partial, label="MSEs", color="red")
+                            # plt.tight_layout()
+                            # plt.show()
+
                             # gamma_partial_csi[n_sim, i_lmbda, i_snr, i_T, :] = gamma_hat_partial_CSI.copy()
 
                             # MSE_partial_csi[i_lmbda, i_snr, i_T, i_M, i_K] = utils.MSE(gamma,
@@ -229,7 +181,7 @@ for n_sim_monto in range(NUM_MONTE_SIM):
 
                             # Estimator based on no CSI and iterative ML (as Caire)
                             gamma_hat_no_CSI, C_inverse_no_CSI, MSEs_no = utils.algorithm_no_csi(
-                                np.zeros_like(gamma_init), s, M,
+                                np.ones_like(gamma_init), s, M,
                                 y,
                                 sigma2, T,
                                 K, iter_max=ITER_MAX,
@@ -241,14 +193,16 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                             # MSE_no_csi[i_lmbda, i_snr, i_T, i_M, i_K] = utils.MSE(gamma,
                             #                                                       gamma_hat_no_CSI)  # utils.ML_value(gamma_no_csi[n_sim, :], C_inverse_no_CSI, y, s, g, M, T)
 
+                            # MSE_rzf = utils.MSE(gamma, gamma_hat_partial_CSI_RZF)
                             # fig = plt.figure()
-                            # plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(MSEs_partial), label="Partial CSI")
-                            # plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(MSEs_no), label="No CSI")
-                            # plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(
-                            #     [MSE_prior_csi[n_sim, i_lmbda, i_snr, i_T, i_M, i_K]] * len(MSEs_partial)),
-                            #          label="Prior CSI")
+                            # plt.plot(np.arange(len(MSEs_partial)) / K, MSEs_partial, label="Partial CSI")
+                            # plt.scatter(ITER_MAX / K, MSE_rzf, label="RZF Partial CSI")
+                            # # plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(MSEs_no), label="No CSI")
+                            # # plt.plot(np.arange(len(MSEs_partial)) / K, 10 * np.log10(
+                            # #     [MSE_prior_csi[n_sim, i_lmbda, i_snr, i_T, i_M, i_K]] * len(MSEs_partial)),
+                            # #          label="Prior CSI")
                             # plt.xlabel("# iterations / K")
-                            # plt.ylabel("MSE")
+                            # plt.ylabel("MSE value")
                             # plt.legend()
                             # plt.tight_layout()
                             # plt.show()
@@ -273,6 +227,8 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                             # plt.legend()
                             # plt.show()
 
+                            v_snr = np.array(
+                                [np.linalg.norm(g[k, :]) ** 2 + M * lambda_k[k,0] ** 2 for k in range(K)]).flatten() / sigma2
                             for iv, v_dB in enumerate(np.linspace(-40, 40, num=NUM_V)):
                                 v = 10 ** (v_dB / 10)
 
@@ -280,12 +236,12 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                                 if iv == 0:
                                     v = -1.0
 
-                                v_th = v / np.sqrt(snr)
+                                v_th = v / np.sqrt(v_snr)
 
                                 the_slice = np.index_exp[i_lmbda, i_snr, i_T, i_M, i_K, iv]
 
                                 act = np.zeros_like(a)
-                                act[np.abs(gamma_hat_prior_CSI) >= v_th] = 1
+                                act[np.abs(gamma_hat_prior_CSI_RZF.flatten()) >= v_th] = 1
 
                                 pa_prior_csi[the_slice] += utils.prob_false(a, act)
                                 md_prior_csi[the_slice] += utils.prob_miss(a, act)
@@ -297,13 +253,13 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                                 md_no_csi[the_slice] += utils.prob_miss(a, act)
 
                                 act = np.zeros_like(a)
-                                act[np.abs(gamma_hat_partial_CSI_ZF) >= v_th] = 1
+                                act[np.abs(gamma_hat_partial_CSI_RZF.flatten()) >= v_th] = 1
 
-                                pa_partial_csi_ZF[the_slice] += utils.prob_false(a, act)
-                                md_partial_csi_ZF[the_slice] += utils.prob_miss(a, act)
+                                pa_partial_csi_RZF[the_slice] += utils.prob_false(a, act)
+                                md_partial_csi_RZF[the_slice] += utils.prob_miss(a, act)
 
                                 act = np.zeros_like(a)
-                                act[np.abs(gamma_hat_partial_CSI) >= v_th] = 1
+                                act[np.abs(gamma_hat_partial_CSI.flatten()) >= v_th] = 1
 
                                 pa_partial_csi[the_slice] += utils.prob_false(a, act)
                                 md_partial_csi[the_slice] += utils.prob_miss(a, act)
@@ -361,141 +317,13 @@ for n_sim_monto in range(NUM_MONTE_SIM):
                             # plt.legend()
                             # plt.show()
                             pbar.update()
-"""
-from mpl_toolkits.mplot3d import Axes3D
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
-X, Y = np.meshgrid(snrs_dB, lambdas)
-surf = ax.plot_surface(X, Y, 10 * np.log10(np.average(MSE_prior_csi, axis=0)), label="prior CSI", alpha=0.4)
-surf._facecolors2d = surf._facecolor3d
-surf._edgecolors2d = surf._edgecolor3d
-surf = ax.plot_surface(X, Y, 10 * np.log10(np.average(MSE_partial_csi, axis=0)), label="partial CSI", alpha=0.4)
-surf._facecolors2d = surf._facecolor3d
-surf._edgecolors2d = surf._edgecolor3d
-surf = ax.plot_surface(X, Y, 10 * np.log10(np.average(MSE_no_csi, axis=0)), label="no CSI", alpha=0.4)
-surf._facecolors2d = surf._facecolor3d
-surf._edgecolors2d = surf._edgecolor3d
-ax.set_xlabel('SNR (dB)')
-ax.set_ylabel('$\lambda_k$')
-ax.set_zlabel('MSE')
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-import plotly.graph_objects as go
-
-colorscale_1 = [[0, "rgb(107,184,255)"], [1, "rgb(0,90,124)"]]
-colorscale_2 = [[0, "rgb(255,107,184)"], [1, "rgb(128,0,64)"]]
-colorscale_3 = [[0, "rgb(107,255,184)"], [1, "rgb(0,124,90)"]]
-
-fig = go.Figure(data=[
-    go.Surface(name="Prior CSI", x=snrs_dB, y=lambdas, z=10 * np.log10(np.average(MSE_prior_csi, axis=0)), opacity=0.5,
-               colorscale=colorscale_1),
-    go.Surface(name="Partial CSI", x=snrs_dB, y=lambdas, z=10 * np.log10(np.average(MSE_partial_csi, axis=0)),
-               showscale=False, opacity=0.5, colorscale=colorscale_2),
-    go.Surface(name="No CSI", x=snrs_dB, y=lambdas, z=10 * np.log10(np.average(MSE_no_csi, axis=0)), showscale=False,
-               opacity=0.5, colorscale=colorscale_3),
-])
-fig.update_layout(scene=dict(
-    xaxis_title='SNR (dB)',
-    yaxis_title='lambda_k',
-    zaxis_title='MSE (dB)'))
-fig.show()
-
-fig = plt.figure()
-plt.plot(snrs_dB, 10 * np.log10(np.average(MSE_prior_csi[:, 0, :], axis=0)),
-         label=f"prior CSI $\lambda_k$={lambdas[0]:0.2f}")
-plt.plot(snrs_dB, 10 * np.log10(np.average(MSE_prior_csi[:, -1, :], axis=0)),
-         label=f"prior CSI $\lambda_k$={lambdas[-1]:0.2f}",
-         color=plt.gca().lines[-1].get_color(), ls="--")
-
-plt.plot(snrs_dB, 10 * np.log10(np.average(MSE_partial_csi[:, 0, :], axis=0)), label="partial CSI")
-plt.plot(snrs_dB, 10 * np.log10(np.average(MSE_partial_csi[:, -1, :], axis=0)),
-         color=plt.gca().lines[-1].get_color(), ls="--")
-plt.plot(snrs_dB, 10 * np.log10(np.average(MSE_no_csi[:, 0, :], axis=0)), label="no CSI")
-plt.plot(snrs_dB, 10 * np.log10(np.average(MSE_no_csi[:, -1, :], axis=0)),
-         color=plt.gca().lines[-1].get_color(), ls="--")
-
-plt.xlabel("SNR (dB)")
-plt.ylabel("MSE")
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-fig = plt.figure()
-plt.plot(lambdas, 10 * np.log10(np.average(MSE_prior_csi[:, :, 0], axis=0)), label=f"prior CSI snr ={snrs_dB[0]} dB")
-plt.plot(lambdas, 10 * np.log10(np.average(MSE_prior_csi[:, :, -1], axis=0)), label=f"prior CSI snr ={snrs_dB[-1]} dB",
-         color=plt.gca().lines[-1].get_color(), ls="--")
-
-plt.plot(lambdas, 10 * np.log10(np.average(MSE_partial_csi[:, :, 0], axis=0)),
-         label=f"partial CSI snr ={snrs_dB[0]} dB")
-plt.plot(lambdas, 10 * np.log10(np.average(MSE_partial_csi[:, :, -1], axis=0)),
-         label=f"partial CSI snr ={snrs_dB[-1]} dB",
-         color=plt.gca().lines[-1].get_color(), ls="--")
-plt.plot(lambdas, 10 * np.log10(np.average(MSE_no_csi[:, :, 0], axis=0)), label=f"no CSI snr ={snrs_dB[0]} dB")
-plt.plot(lambdas, 10 * np.log10(np.average(MSE_no_csi[:, :, -1], axis=0)), label=f"no CSI snr ={snrs_dB[-1]} dB",
-         color=plt.gca().lines[-1].get_color(), ls="--")
-
-plt.xlabel("$\lambda_k$")
-plt.ylabel("MSE")
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-# TODO sum log or sum 10**log/10?
-# print(f'MSE just using prior CSI: \t\t{np.average(MSE_prior_csi):0.2f} dB')
-# print(f'MSE using partial CSI:  \t\t{np.average(MSE_partial_csi):0.2f} dB')
-# print(f'MSE using genie-aided CSI:  \t{np.average(MSE_genie_csi):0.2f} dB')
-# print(f'MSE using no CSI: \t\t\t\t{np.average(MSE_no_csi):0.2f} dB')
-#
-# ROWS = 5
-# THRESHOLD = 0.2
-#
-# plt.figure()
-# _roc = np.average(roc_prior_csi, axis=0)
-# plt.plot(_roc[0], _roc[1], label="Prior CSI")
-# _roc = np.average(roc_partial_csi, axis=0)
-# plt.plot(_roc[0], _roc[1], label="Partial CSI")
-# _roc = np.average(roc_no_csi, axis=0)
-# plt.plot(_roc[0], _roc[1], label="No CSI")
-#
-# plt.yscale('log')
-# plt.xscale('log')
-#
-# plt.xlabel("Probability of False Alarm")
-# plt.ylabel("Probability of Miss Detection")
-# plt.legend()
-# plt.tight_layout()
-# plt.show()
-#
-# plt.figure()
-# _roc = np.average(roc_prior_csi, axis=0)
-# plt.plot(_roc[0] * 100, _roc[1] * 100, label="Prior CSI")
-# _roc = np.average(roc_partial_csi, axis=0)
-# plt.plot(_roc[0] * 100, _roc[1] * 100, label="Partial CSI")
-# _roc = np.average(roc_no_csi, axis=0)
-# plt.plot(_roc[0] * 100, _roc[1] * 100, label="No CSI")
-# _roc = np.average(roc_genie_csi, axis=0)
-# plt.plot(_roc[0] * 100, _roc[1] * 100, label="Genie-aided CSI")
-#
-# # plt.yscale('log')
-# # plt.xscale('log')
-#
-# plt.xlabel("Probability of False Alarm (%)")
-# plt.ylabel("Probability of Miss Detection (%)")
-# plt.legend()
-# plt.tight_layout()
-# plt.show()
-"""
 
 # average over all simulations (monto + noise)
 pa_prior_csi /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
 md_prior_csi /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
 
-pa_partial_csi_ZF /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
-md_partial_csi_ZF /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
+pa_partial_csi_RZF /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
+md_partial_csi_RZF /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
 
 pa_partial_csi /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
 md_partial_csi /= (NUM_MONTE_SIM * NUM_NOISE_REALIZATIONS)
@@ -510,24 +338,11 @@ os.makedirs(results_dir, exist_ok=True)
 
 np.savez_compressed(os.path.join(results_dir, f"data-{secrets.token_urlsafe(16)}"),
                     pa_prior_csi=pa_prior_csi,
-                    md_prior_csi=md_prior_csi, pa_partial_csi_ZF=pa_partial_csi_ZF, md_partial_csi_ZF=md_partial_csi_ZF,
+                    md_prior_csi=md_prior_csi, pa_partial_csi_ZF=pa_partial_csi_RZF,
+                    md_partial_csi_ZF=md_partial_csi_RZF,
                     pa_partial_csi=pa_partial_csi, md_partial_csi=md_partial_csi,
                     pa_no_csi=pa_no_csi, md_no_csi=md_no_csi, params=params, SHAPE_PROB=SHAPE_PROB)
 
-# mean_axis = tuple(range(pa_prior_csi.ndim - 1))
-# fig = plt.figure()
-# plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
-# plt.plot(pa_partial_csi_ZF.mean(axis=mean_axis), md_partial_csi_ZF.mean(axis=mean_axis), label="Partial CSI (ZF)",
-#          marker="x")
-# plt.plot(pa_partial_csi.mean(axis=mean_axis), md_partial_csi.mean(axis=mean_axis), label="Partial CSI (algo)",
-#          marker="x")
-# plt.plot(pa_no_csi.mean(axis=mean_axis), md_no_csi.mean(axis=mean_axis), label="No CSI (algo)", marker="x")
-# plt.xscale("log")
-# plt.yscale("log")
-# plt.xlabel("FA")
-# plt.ylabel("MD")
-# plt.legend()
-# plt.tight_layout()
-# plt.show()
+
 
 pbar.close()

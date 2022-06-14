@@ -23,7 +23,7 @@ def same_prob_args(x1, x2):
 
 
 with np.load(
-        os.path.join(os.path.dirname(os.path.realpath(__file__)), "merged-results", "data-DYVr595uCoL7AFe22hod0g.npz"),
+        os.path.join(os.path.dirname(os.path.realpath(__file__)), "results", "data-DD4eslEKZEFX_SNCadPEVg.npz"),
         allow_pickle=True) as data:
     pa_prior_csi = data["pa_prior_csi"]
     md_prior_csi = data["md_prior_csi"]
@@ -70,19 +70,20 @@ with np.load(
     HIGHEST_K_IDX = np.argmax(params["users"])
 
     LOWEST_T_IDX = np.argmin(params["preamble_lengths"])
+    HIGHEST_T_IDX = np.argmax(params["preamble_lengths"])
 
     HIGHEST_LAMBDA_IDX = np.argmax(params["lambdas"])
     LOWEST_LAMBDA_IDX = np.argmin(params["lambdas"])
 
     fig = plt.figure()
-    selection = np.index_exp[HIGHEST_LAMBDA_IDX, HIGHEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX, :]
+    selection = np.index_exp[LOWEST_LAMBDA_IDX, LOWEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX, :]
 
-    plt.plot(pa_prior_csi[selection], md_prior_csi[selection], label="Full CSI (ZF)", marker="x")
-    plt.plot(pa_partial_csi_ZF[selection], md_partial_csi_ZF[selection], label="Partial CSI (ZF)",
+    plt.plot(pa_prior_csi[selection], md_prior_csi[selection], label="Full CSI (RZF)", marker="x")
+    plt.plot(pa_partial_csi_ZF[selection], md_partial_csi_ZF[selection], label="Partial CSI (RZF)",
              marker="x")
     plt.plot(pa_partial_csi[selection], md_partial_csi[selection], label="Partial CSI (algo)",
              marker="x")
-    plt.plot(pa_no_csi[selection], md_no_csi[selection], label="No CSI (algo)", marker="x")
+    # plt.plot(pa_no_csi[selection], md_no_csi[selection], label="No CSI (algo)", marker="x")
     plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("FA")
@@ -95,19 +96,19 @@ with np.load(
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)
 
-    selection = np.index_exp[HIGHEST_LAMBDA_IDX, :, LOWEST_T_IDX, HIGHEST_M_IDX, HIGHEST_K_IDX]
+    selection = np.index_exp[HIGHEST_LAMBDA_IDX, :, HIGHEST_T_IDX, HIGHEST_M_IDX, HIGHEST_K_IDX]
 
-    plt.plot(snrs_db, x1[selection], label="Full CSI (ZF)")
+    plt.plot(snrs_db, x1[selection], label="Full CSI (RZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi_ZF, md_partial_csi_ZF)
-    plt.plot(snrs_db, x1[selection], label=f"Partial CSI (ZF) {lambdas[HIGHEST_LAMBDA_IDX]:.2f}")
+    plt.plot(snrs_db, x1[selection], label=f"Partial CSI (RZF) {lambdas[HIGHEST_LAMBDA_IDX]:.2f}")
 
     x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
     plt.plot(snrs_db, x1[selection], label=f"Partial CSI (algo) {lambdas[HIGHEST_LAMBDA_IDX]:.2f}")
 
     selection = np.index_exp[LOWEST_LAMBDA_IDX, :, LOWEST_T_IDX, HIGHEST_M_IDX, HIGHEST_K_IDX]
     x1, x2, args = same_prob_args(pa_partial_csi_ZF, md_partial_csi_ZF)
-    plt.plot(snrs_db, x1[selection], label=f"Partial CSI (ZF) {lambdas[LOWEST_LAMBDA_IDX]:.2f}")
+    plt.plot(snrs_db, x1[selection], label=f"Partial CSI (RZF) {lambdas[LOWEST_LAMBDA_IDX]:.2f}")
 
     x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
     plt.plot(snrs_db, x1[selection], label=f"Partial CSI (algo) {lambdas[LOWEST_LAMBDA_IDX]:.2f}")
@@ -124,17 +125,16 @@ with np.load(
     plt.tight_layout()
     plt.show()
 
-
     plt.figure()
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)
 
     selection = np.index_exp[HIGHEST_LAMBDA_IDX, LOWEST_SNR_IDX, LOWEST_T_IDX, :, HIGHEST_K_IDX]
 
-    plt.plot(Ms, x2[selection], label="Full CSI (ZF)")
+    plt.plot(Ms, x2[selection], label="Full CSI (RZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi_ZF, md_partial_csi_ZF)
-    plt.plot(Ms, x2[selection], label="Partial CSI (ZF)")
+    plt.plot(Ms, x2[selection], label="Partial CSI (RZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
     plt.plot(Ms, x2[selection], label="Partial CSI (algo)")
@@ -157,14 +157,14 @@ with np.load(
 
     plt.figure()
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
+
+    selection = np.index_exp[:, HIGHEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX]
+
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)
-
-    selection = np.index_exp[:, LOWEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX]
-
-    plt.plot(lambdas, x1[selection], label="Full CSI (ZF)")
+    plt.plot(lambdas, x1[selection], label="Full CSI (RZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi_ZF, md_partial_csi_ZF)
-    plt.plot(lambdas, x1[selection], label="Partial CSI (ZF)")
+    plt.plot(lambdas, x1[selection], label="Partial CSI (RZF)")
 
     x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
     plt.plot(lambdas, x1[selection], label="Partial CSI (algo)")
@@ -197,19 +197,53 @@ with np.load(
     fig, ax = plt.subplots()
 
     i_lambdas = range(len(lambdas))
+    #i_lambdas = [1, 4, 7]
     for iil, il in enumerate(i_lambdas):
-        selection = np.index_exp[il, LOWEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX]
+        selection = np.index_exp[il, HIGHEST_SNR_IDX, LOWEST_T_IDX, HIGHEST_M_IDX, HIGHEST_K_IDX]
         ax.plot(pa_prior_csi[selection], md_prior_csi[selection], label=lambdas[il], color=f"C{iil}", ls=linestyles[0])
         ax.plot(pa_partial_csi_ZF[selection], md_partial_csi_ZF[selection], color=f"C{iil}", ls=linestyles[1])
         ax.plot(pa_partial_csi[selection], md_partial_csi[selection], color=f"C{iil}", ls=linestyles[2])
-        ax.plot(pa_no_csi[selection], md_no_csi[selection], color=f"C{iil}", ls=linestyles[3])
+        # ax.plot(pa_no_csi[selection], md_no_csi[selection], color=f"C{iil}", ls=linestyles[3])
 
     lines = ax.get_lines()
-    legend1 = plt.legend([lines[i] for i in [0, 1, 2, 3]],
-                         ["Full CSI (ZF)", "Partial CSI (ZF)", "Partial CSI (algo)", "No CSI (algo)"], loc=3, )
-    legend2 = plt.legend([lines[i] for i in [j * 4 for j in range(len(i_lambdas))]],
+    legend1 = plt.legend([lines[i] for i in [0, 1, 2]],
+                         ["Full CSI (RZF)", "Partial CSI (RZF)", "Partial CSI (algo)"], loc=3, )
+    legend2 = plt.legend([lines[i] for i in [j * 3 for j in range(len(i_lambdas))]],
                          [f"{lambdas[il]:.2f} ({(1 - lambdas[il] ** 2) * 100:.1f}%)" for il in i_lambdas], loc=8,
                          title="$\lambda$ (1-$\lambda^2$%)")
+    ax.add_artist(legend1)
+    ax.add_artist(legend2)
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xlabel("FA")
+    plt.ylabel("MD")
+    plt.tight_layout()
+    plt.show()
+
+    colors = [cmap(x) for x in np.linspace(0, 0.8, num=4)]
+
+    linestyles = [
+        'solid',  # Same as (0, ()) or '-'
+        'dotted',  # Same as (0, (1, 1)) or ':'
+        'dashed',  # Same as '--'
+        'dashdot']
+    fig, ax = plt.subplots()
+
+    i_snrs = range(len(snrs))
+    #i_snrs = [1, 4, 7]
+    for iil, il in enumerate(i_snrs):
+        selection = np.index_exp[LOWEST_LAMBDA_IDX, il, LOWEST_T_IDX, HIGHEST_M_IDX, HIGHEST_K_IDX]
+        ax.plot(pa_prior_csi[selection], md_prior_csi[selection], label=f"{snrs_db[il]:.2f}dB", color=f"C{iil}", ls=linestyles[0])
+        ax.plot(pa_partial_csi_ZF[selection], md_partial_csi_ZF[selection], color=f"C{iil}", ls=linestyles[1])
+        ax.plot(pa_partial_csi[selection], md_partial_csi[selection], color=f"C{iil}", ls=linestyles[2])
+        # ax.plot(pa_no_csi[selection], md_no_csi[selection], color=f"C{iil}", ls=linestyles[3])
+
+    lines = ax.get_lines()
+    legend1 = plt.legend([lines[i] for i in [0, 1, 2]],
+                         ["Full CSI (RZF)", "Partial CSI (RZF)", "Partial CSI (algo)"], loc=3, )
+    legend2 = plt.legend([lines[i] for i in [j * 3 for j in range(len(i_snrs))]],
+                         [f"{snrs_db[il]:.2f}dB" for il in i_snrs], loc=8,
+                         title="SNR")
     ax.add_artist(legend1)
     ax.add_artist(legend2)
     plt.xscale("log")

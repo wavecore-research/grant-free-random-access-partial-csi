@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 eps_a = 0.1
 
 NUM_MONTE_SIM = 1
-NUM_NOISE_REALIZATIONS = 10
+NUM_NOISE_REALIZATIONS = 5
 NUM_LAMBDA = 4
 NUM_SNR = 4
 NUM_T = 1  # number of diff preambles per run 10->40
@@ -131,7 +131,7 @@ for n_sim_monto in range(NUM_MONTE_SIM):
 
                             ## Estimator based on partial CSI and iterative ML
 
-                            gamma_init = gamma.copy()
+                            gamma_init = gamma_hat_partial_CSI_RZF.copy()
                             # Initialization thanks to prior CSI
                             gamma_hat_partial_CSI, C_inverse_partial_CSI, (MSEs_partial, LLs_partial) = utils.algorithm(
                                 gamma_init,

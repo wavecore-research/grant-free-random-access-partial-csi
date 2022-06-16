@@ -10,6 +10,9 @@ import utils
 directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), "results")
 merged_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "merged-results")
 
+os.makedirs(merged_dir)
+
+
 unique_params = []
 merged_data = []
 

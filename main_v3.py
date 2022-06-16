@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 eps_a = 0.1
 
 NUM_MONTE_SIM = 1
-NUM_NOISE_REALIZATIONS = 5
+NUM_NOISE_REALIZATIONS = 500
 NUM_LAMBDA = 4
 NUM_SNR = 4
 NUM_T = 1  # number of diff preambles per run 10->40

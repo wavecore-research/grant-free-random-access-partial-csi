@@ -3,6 +3,7 @@ import warnings
 
 import matplotlib
 import keyboard
+from matplotlib import pyplot as plt
 
 matplotlib.use('Qt5Agg')
 
@@ -23,9 +24,9 @@ warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 eps_a = 0.1
 
 # NUM_MONTE_SIM = 5
-NUM_NOISE_REALIZATIONS = 1
-NUM_LAMBDA = 1
-NUM_SNR = 1
+NUM_NOISE_REALIZATIONS = 100
+NUM_LAMBDA = 5
+NUM_SNR = 5
 NUM_T = 1  # number of diff preambles per run 10->40
 
 NUM_V = 1000
@@ -35,7 +36,7 @@ preamble_lengths = np.linspace(10, 40, num=NUM_T).astype(int)
 
 snrs_dB = np.linspace(-20, 20, num=NUM_SNR)
 snrs = 10 ** (np.asarray(snrs_dB) / 10)
-antennas = [16, 32, 64, 128]
+antennas = [32, 64, 128]
 
 p_TX = 1
 
@@ -92,7 +93,7 @@ while True:
 
     for n_sim_noise in range(NUM_NOISE_REALIZATIONS):
         for i_K, K in enumerate(users):
-            ITER_MAX = K * 4
+            ITER_MAX = K * 10
             rho = np.ones((K, 1)) * p_TX
             phi = np.random.uniform(0, 2 * np.pi, size=(K, 1))
             a = np.random.binomial(n=1, p=eps_a, size=(K, 1))
@@ -143,6 +144,20 @@ while True:
                                 sigma2,
                                 T, K,
                                 iter_max=ITER_MAX, real_gamma=gamma)
+
+
+                            # fig, ax_ll = plt.subplots()
+                            # ax_mse = ax_ll.twinx()
+                            # ax3 = ax_mse.twiny()
+                            # ax_ll.get_shared_x_axes().join(ax_mse, ax3)
+                            #
+                            # ax_ll.set_ylabel("LLs", color="blue")
+                            # ax_mse.set_ylabel("MSEs", color="red")
+                            #
+                            # ax_ll.plot(LLs_partial, label="LLs", color="blue")
+                            # ax_mse.plot(MSEs_partial, label="MSEs", color="red")
+                            # plt.tight_layout()
+                            # plt.show()
 
                             v_snr = np.array(
                                 [np.linalg.norm(g[k, :]) ** 2 + M * lambda_k[k, 0] ** 2 for k in

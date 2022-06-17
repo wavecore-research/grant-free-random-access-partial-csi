@@ -23,7 +23,7 @@ def same_prob_args(x1, x2):
 
 
 with np.load(
-        os.path.join(os.path.dirname(os.path.realpath(__file__)), "merged-results", "data-V2mp4TPcIRnJeNflm_g9XQ.npz"),
+        os.path.join(os.path.dirname(os.path.realpath(__file__)), "results", "data-ZRpzJ1DIZnuU-t41ijk8jQ.npz"),
         allow_pickle=True) as data:
     pa_prior_csi = data["pa_prior_csi"]
     md_prior_csi = data["md_prior_csi"]
@@ -31,8 +31,6 @@ with np.load(
     md_partial_csi_ZF = data["md_partial_csi_ZF"]
     pa_partial_csi = data["pa_partial_csi"]
     md_partial_csi = data["md_partial_csi"]
-    pa_no_csi = data["pa_no_csi"]
-    md_no_csi = data["md_no_csi"]
     params = data["params"].item()
     SHAPE_PROB = data["SHAPE_PROB"]
     lambdas = params["lambdas"]
@@ -139,8 +137,6 @@ with np.load(
     x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
     plt.plot(Ms, x2[selection], label="Partial CSI (algo)")
 
-    x1, x2, args = same_prob_args(pa_no_csi, md_no_csi)
-    plt.plot(Ms, x2[selection], label="No CSI (algo)")
 
     # x1, x2, args = same_prob_args(pa_no_csi, md_no_csi)
     # plt.scatter(snrs_db, x1[0, :, 0, 0, 0], label="No CSI (algo) x1")
@@ -169,8 +165,6 @@ with np.load(
     x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
     plt.plot(lambdas, x1[selection], label="Partial CSI (algo)")
 
-    x1, x2, args = same_prob_args(pa_no_csi, md_no_csi)
-    plt.plot(lambdas, x1[selection], label="No CSI (algo)")
 
     # x1, x2, args = same_prob_args(pa_no_csi, md_no_csi)
     # plt.scatter(snrs_db, x1[0, :, 0, 0, 0], label="No CSI (algo) x1")

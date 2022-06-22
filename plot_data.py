@@ -23,7 +23,7 @@ def same_prob_args(x1, x2):
 
 
 with np.load(
-        os.path.join(os.path.dirname(os.path.realpath(__file__)), "results", "data-ZRpzJ1DIZnuU-t41ijk8jQ.npz"),
+        os.path.join(os.path.dirname(os.path.realpath(__file__)), "results", "data-IR-T7q5XoQf2KwvhY7WThQ.npz"),
         allow_pickle=True) as data:
     pa_prior_csi = data["pa_prior_csi"]
     md_prior_csi = data["md_prior_csi"]

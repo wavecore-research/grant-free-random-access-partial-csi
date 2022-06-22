@@ -8,8 +8,8 @@ def iid(dim, var=1.0) -> np.ndarray:
     """
     return iid CN(0,var) with dimensions dim
     """
-    return (1 / np.sqrt(2)) * np.random.normal(size=dim, scale=np.sqrt(var)) + 1j * (1 / np.sqrt(2)) * np.random.normal(
-        size=dim, scale=np.sqrt(var))
+    return np.sqrt(var/2) * (np.random.normal(size=dim, scale=1) + 1j * np.random.normal(
+        size=dim, scale=1))
 
 
 def is_illcond(arr: np.ndarray):

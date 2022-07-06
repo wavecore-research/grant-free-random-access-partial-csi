@@ -345,7 +345,6 @@ import secrets
 results_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "results")
 os.makedirs(results_dir, exist_ok=True)
 
-
 print(f"Pressed 'q', stopping... #simulations is {n_sim_monto}")
 outfile = f"data-{secrets.token_urlsafe(16)}"
 

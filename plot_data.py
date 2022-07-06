@@ -23,7 +23,7 @@ def same_prob_args(x1, x2):
 
 
 with np.load(
-        os.path.join(os.path.dirname(os.path.realpath(__file__)), "results", "data-IR-T7q5XoQf2KwvhY7WThQ.npz"),
+        os.path.join(os.path.dirname(os.path.realpath(__file__)), "merged-results", "data-merged.npz"),
         allow_pickle=True) as data:
     pa_prior_csi = data["pa_prior_csi"]
     md_prior_csi = data["md_prior_csi"]
@@ -73,8 +73,13 @@ with np.load(
     HIGHEST_LAMBDA_IDX = np.argmax(params["lambdas"])
     LOWEST_LAMBDA_IDX = np.argmin(params["lambdas"])
 
+
+    ##########################
+    # FIGURE 1: FA vs MD
+    ##########################
     fig = plt.figure()
     selection = np.index_exp[LOWEST_LAMBDA_IDX, LOWEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX, :]
+    plt.title(f"Params $T$={Ts[selection[T_IDX]]}, $M$={Ms[selection[M_IDX]]}, $K$={Ks[selection[K_IDX]]}, $\lambda$={lambdas[selection[LAMBDA_IDX]]}, SNR={snrs_db[selection[SNR_IDX]]} dB")
 
     plt.plot(pa_prior_csi[selection], md_prior_csi[selection], label="Full CSI (RZF)", marker="x")
     plt.plot(pa_partial_csi_ZF[selection], md_partial_csi_ZF[selection], label="Partial CSI (RZF)",
@@ -90,11 +95,18 @@ with np.load(
     plt.tight_layout()
     plt.show()
 
+
+
+    ##########################
+    # FIGURE 2: x vs SNR
+    ##########################
     plt.figure()
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)
 
-    selection = np.index_exp[HIGHEST_LAMBDA_IDX, :, HIGHEST_T_IDX, HIGHEST_M_IDX, HIGHEST_K_IDX]
+    selection = np.index_exp[HIGHEST_LAMBDA_IDX, :, HIGHEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX]
+    plt.title(f"Params $T$={Ts[selection[T_IDX]]}, $M$={Ms[selection[M_IDX]]}, $K$={Ks[selection[K_IDX]]}, $\lambda$={lambdas[selection[LAMBDA_IDX]]}")
+
 
     plt.plot(snrs_db, x1[selection], label="Full CSI (RZF)")
 
@@ -104,7 +116,7 @@ with np.load(
     x1, x2, args = same_prob_args(pa_partial_csi, md_partial_csi)
     plt.plot(snrs_db, x1[selection], label=f"Partial CSI (algo) {lambdas[HIGHEST_LAMBDA_IDX]:.2f}")
 
-    selection = np.index_exp[LOWEST_LAMBDA_IDX, :, LOWEST_T_IDX, HIGHEST_M_IDX, HIGHEST_K_IDX]
+    selection = np.index_exp[LOWEST_LAMBDA_IDX, :, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX]
     x1, x2, args = same_prob_args(pa_partial_csi_ZF, md_partial_csi_ZF)
     plt.plot(snrs_db, x1[selection], label=f"Partial CSI (RZF) {lambdas[LOWEST_LAMBDA_IDX]:.2f}")
 
@@ -123,11 +135,15 @@ with np.load(
     plt.tight_layout()
     plt.show()
 
+    ##########################
+    # FIGURE 3: x vs M
+    ##########################
     plt.figure()
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)
 
     selection = np.index_exp[HIGHEST_LAMBDA_IDX, LOWEST_SNR_IDX, LOWEST_T_IDX, :, HIGHEST_K_IDX]
+    plt.title(f"Params $T$={Ts[selection[T_IDX]]}, $K$={Ks[selection[K_IDX]]}, $\lambda$={lambdas[selection[LAMBDA_IDX]]}, SNR={snrs_db[selection[SNR_IDX]]} dB")
 
     plt.plot(Ms, x2[selection], label="Full CSI (RZF)")
 
@@ -151,10 +167,16 @@ with np.load(
 
     # (NUM_LAMBDA, NUM_SNR, NUM_T, NUM_ANT, NUM_K, NUM_V)
 
+
+    ##########################
+    # FIGURE 4: x vs lambda
+    ##########################
     plt.figure()
     # plt.plot(pa_prior_csi.mean(axis=mean_axis), md_prior_csi.mean(axis=mean_axis), label="Full CSI (ZF)", marker="x")
 
     selection = np.index_exp[:, HIGHEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX]
+    plt.title(f"Params $T$={Ts[selection[T_IDX]]}, $M$={Ms[selection[M_IDX]]}, $K$={Ks[selection[K_IDX]]}, SNR={snrs_db[selection[SNR_IDX]]} dB")
+
 
     x1, x2, args = same_prob_args(pa_prior_csi, md_prior_csi)
     plt.plot(lambdas, x1[selection], label="Full CSI (RZF)")
@@ -177,8 +199,12 @@ with np.load(
     plt.tight_layout()
     plt.show()
 
-    import matplotlib.pyplot as plt
 
+
+
+    ##########################
+    # FIGURE 5: x vs lambda
+    ##########################
     cmap = plt.cm.get_cmap('viridis')
 
     colors = [cmap(x) for x in np.linspace(0, 0.8, num=4)]
@@ -190,15 +216,17 @@ with np.load(
         'dashdot']
     fig, ax = plt.subplots()
 
+
     i_lambdas = range(len(lambdas))
     #i_lambdas = [1, 4, 7]
     for iil, il in enumerate(i_lambdas):
-        selection = np.index_exp[il, HIGHEST_SNR_IDX, LOWEST_T_IDX, HIGHEST_M_IDX, HIGHEST_K_IDX]
+        selection = np.index_exp[il, HIGHEST_SNR_IDX, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX]
         ax.plot(pa_prior_csi[selection], md_prior_csi[selection], label=lambdas[il], color=f"C{iil}", ls=linestyles[0])
         ax.plot(pa_partial_csi_ZF[selection], md_partial_csi_ZF[selection], color=f"C{iil}", ls=linestyles[1])
         ax.plot(pa_partial_csi[selection], md_partial_csi[selection], color=f"C{iil}", ls=linestyles[2])
         # ax.plot(pa_no_csi[selection], md_no_csi[selection], color=f"C{iil}", ls=linestyles[3])
-
+    plt.title(
+        f"Params $T$={Ts[selection[T_IDX]]}, $M$={Ms[selection[M_IDX]]}, $K$={Ks[selection[K_IDX]]}, SNR={snrs_db[selection[SNR_IDX]]} dB")
     lines = ax.get_lines()
     legend1 = plt.legend([lines[i] for i in [0, 1, 2]],
                          ["Full CSI (RZF)", "Partial CSI (RZF)", "Partial CSI (algo)"], loc=3, )
@@ -226,11 +254,12 @@ with np.load(
     i_snrs = range(len(snrs))
     #i_snrs = [1, 4, 7]
     for iil, il in enumerate(i_snrs):
-        selection = np.index_exp[LOWEST_LAMBDA_IDX, il, LOWEST_T_IDX, HIGHEST_M_IDX, HIGHEST_K_IDX]
+        selection = np.index_exp[LOWEST_LAMBDA_IDX, il, LOWEST_T_IDX, LOWEST_M_IDX, HIGHEST_K_IDX]
         ax.plot(pa_prior_csi[selection], md_prior_csi[selection], label=f"{snrs_db[il]:.2f}dB", color=f"C{iil}", ls=linestyles[0])
         ax.plot(pa_partial_csi_ZF[selection], md_partial_csi_ZF[selection], color=f"C{iil}", ls=linestyles[1])
         ax.plot(pa_partial_csi[selection], md_partial_csi[selection], color=f"C{iil}", ls=linestyles[2])
         # ax.plot(pa_no_csi[selection], md_no_csi[selection], color=f"C{iil}", ls=linestyles[3])
+    plt.title(f"Params $T$={Ts[selection[T_IDX]]}, $M$={Ms[selection[M_IDX]]}, $K$={Ks[selection[K_IDX]]}, $\lambda$={lambdas[selection[LAMBDA_IDX]]}")
 
     lines = ax.get_lines()
     legend1 = plt.legend([lines[i] for i in [0, 1, 2]],

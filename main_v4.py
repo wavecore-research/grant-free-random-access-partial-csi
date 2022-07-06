@@ -26,10 +26,9 @@ warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 # beta_k = np.ones((K, 1))
 eps_a = 0.1
 
-NUM_MONTE_SIM = 1
-NUM_NOISE_REALIZATIONS = 1
+NUM_NOISE_REALIZATIONS = 50
 NUM_LAMBDA = 2
-NUM_SNR = 2
+NUM_SNR = 20
 NUM_T = 1  # number of diff preambles per run 10->40
 
 NUM_V = 1000
@@ -37,9 +36,9 @@ NUM_V = 1000
 lambdas = np.linspace(0.3, 0.9, num=NUM_LAMBDA)
 preamble_lengths = np.linspace(10, 40, num=NUM_T).astype(int)
 
-snrs_dB = np.linspace(-20, 20, num=NUM_SNR)
+snrs_dB = np.linspace(20, -20, num=NUM_SNR)
 snrs = 10 ** (np.asarray(snrs_dB) / 10)
-antennas = [16, 32, 64, 128]
+antennas = [64]
 
 p_TX = 1
 

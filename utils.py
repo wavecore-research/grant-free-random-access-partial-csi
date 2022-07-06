@@ -604,7 +604,8 @@ def merge(d1, d2):
     d1["md_partial_csi"] = (d1["md_partial_csi"] + d2["md_partial_csi"]) / 2
     d1["pa_prior_csi"] = (d1["pa_prior_csi"] + d2["pa_prior_csi"]) / 2
 
-    d1["pa_no_csi"] = (d1["pa_no_csi"] + d2["pa_no_csi"]) / 2
-    d1["md_no_csi"] = (d1["md_no_csi"] + d2["md_no_csi"]) / 2
+    if "pa_no_csi" in d1.keys() and "pa_no_csi" in d2.keys():
+        d1["pa_no_csi"] = (d1["pa_no_csi"] + d2["pa_no_csi"]) / 2
+        d1["md_no_csi"] = (d1["md_no_csi"] + d2["md_no_csi"]) / 2
 
     return d1
